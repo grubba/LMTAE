@@ -1,7 +1,10 @@
 /*
- * $Id: recomp.h,v 1.6 1996/08/11 14:49:03 grubba Exp $
+ * $Id: recomp.h,v 1.7 1996/08/11 17:36:19 grubba Exp $
  *
  * $Log: recomp.h,v $
+ * Revision 1.6  1996/08/11 14:49:03  grubba
+ * Added option to turn off SR optimization.
+ *
  * Revision 1.5  1996/07/17 16:01:48  grubba
  * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
  * Hopefully all places got patched.
@@ -75,6 +78,7 @@ extern U32 debuglevel;
 #define DL_COMPILER_DISASSEMBLY	2
 #define DL_RUNTIME_TRACE	4
 #define DL_NO_SR_OPTIMIZATION	8
+#define DL_STATISTICS		16
 
 /*
  * Prototypes

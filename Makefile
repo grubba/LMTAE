@@ -1,9 +1,12 @@
 #
-# $Id: Makefile,v 1.14 1996/08/11 13:57:28 grubba Exp $
+# $Id: Makefile,v 1.15 1996/08/11 17:36:05 grubba Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.14  1996/08/11 13:57:28  grubba
+# Added some missing dependancies.
+#
 # Revision 1.13  1996/07/19 16:46:07  grubba
 # Cleaned up interrupt handling.
 # Cleaned up custom chip emulation.
@@ -192,6 +195,12 @@ compglue.o : types.h recomp.h m68k.h sparc.h codeinfo.h compiler.h \
 compgen.o : types.h recomp.h m68k.h sparc.h codeinfo.h
 
 disassembler.o : types.h recomp.h m68k.h compiler.h opcodes.h
+
+peephole.o : types.h m68k.h codeinfo.h peephole.h
+
+sanity.o : m68k.h codeinfo.h setpatch.h
+
+setpatch.o : types.h recomp.h m68k.h codeinfo.h setpatch.h
 
 citest.o : recomp.h m68k.h codeinfo.h
 

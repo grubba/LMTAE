@@ -1,9 +1,12 @@
 /*
- * $Id: compglue.c,v 1.13 1996/08/11 14:48:52 grubba Exp $
+ * $Id: compglue.c,v 1.14 1996/08/11 17:36:12 grubba Exp $
  *
  * Help functions for the M68000 to Sparc compiler.
  *
  * $Log: compglue.c,v $
+ * Revision 1.13  1996/08/11 14:48:52  grubba
+ * Added option to turn off SR optimization.
+ *
  * Revision 1.12  1996/08/10 18:19:11  grubba
  * Now with enabled SR optimization!
  *
@@ -917,6 +920,8 @@ U32 compile(struct code_info *ci)
 #endif /* NDEBUG */
 
   DPRINTF(("Compiled %d opcodes\n", comp_num_opcodes));
+
+  ci->num_opcodes = comp_num_opcodes;
 
 #ifdef DEBUG
   {

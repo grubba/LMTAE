@@ -1,9 +1,12 @@
 /*
- * $Id: recomp.c,v 1.16 1996/08/11 14:48:59 grubba Exp $
+ * $Id: recomp.c,v 1.17 1996/08/11 17:36:16 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.16  1996/08/11 14:48:59  grubba
+ * Added option to turn off SR optimization.
+ *
  * Revision 1.15  1996/07/19 16:46:22  grubba
  * Cleaned up interrupt handling.
  * Cleaned up custom chip emulation.
@@ -92,6 +95,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 
@@ -118,6 +122,12 @@
 void check_sanity(struct code_info *ci, struct m_registers *regs, unsigned char *memory);
 
 #endif /* SANITY */
+
+/*
+ * Threshold for statistics
+ */
+
+#define STATISTICS_THRESHOLD	100000
 
 /*
  * Globals
@@ -212,6 +222,17 @@ volatile void compile_and_go(struct m_registers *regs, U32 maddr)
   struct code_info *ci = NULL;
   struct code_info *old_ci = NULL;
   U32 oldsr = regs->sr;
+  S64 run_time;
+  S64 comp_time;
+  U32 run_instr;
+  U32 comp_instr;
+
+  if (debuglevel & DL_STATISTICS) {
+    run_time = -gethrtime();
+    comp_time = 0;
+    run_instr = 0;
+    comp_instr = 0;
+  }
 
   while (1) {
     U32 irq_mask;
@@ -281,6 +302,9 @@ volatile void compile_and_go(struct m_registers *regs, U32 maddr)
 		maddr, regs->pc);
       }
 #endif /* DEBUG */
+      if (debuglevel & DL_STATISTICS) {
+	comp_time = -gethrtime();
+      }
       mend = compile(ci);
       
       if (!segment) {
@@ -291,6 +315,19 @@ volatile void compile_and_go(struct m_registers *regs, U32 maddr)
 	}
 #endif /* DEBUG */
 	segment = insert_seg(&code_tree, maddr, mend);
+	if (debuglevel & DL_STATISTICS) {
+	  comp_time += gethrtime();
+	  comp_instr += ci->num_opcodes;
+	
+	  if (comp_instr > STATISTICS_THRESHOLD) {
+	    run_time += gethrtime();
+	    printf("Compiling: %d instructions in %lld ns (%lld ns/instruction)\n",
+		   comp_instr, comp_time, comp_time/comp_instr);
+	    comp_instr = 0;
+	    comp_time = 0;
+	    run_time -= gethrtime();
+	  }
+	}
 	if (!segment) {
 	  /* BUS ERROR? */
 	  fprintf(stderr, "Out of memory?\n");
@@ -322,6 +359,16 @@ volatile void compile_and_go(struct m_registers *regs, U32 maddr)
 #ifdef SANITY
     check_sanity(ci, regs, memory);
 #endif /* SANITY */
+    if (debuglevel & DL_STATISTICS) {
+      run_instr += ci->num_opcodes;
+      if (run_instr > STATISTICS_THRESHOLD) {
+	run_time += gethrtime();
+	printf("Runtime: %d instructions in %lld ns (%lld ns/instruction)\n",
+	       run_instr, run_time, run_time/run_instr);
+	run_instr = 0;
+	run_time = -gethrtime();
+      }
+    }
   }
 }
 
@@ -368,6 +415,7 @@ volatile void Usage(char *arg0, char *romdump)
 	  "Available flags are:\n"
 	  "-C\tVerbose compiler\n"
 	  "-D\tDisassemble\n"
+	  "-s\tRuntime statistics\n"
 	  "-t\tRuntime trace\n"
 	  "\n"
 	  "+O\tTurn off SR optimization\n"
@@ -391,6 +439,9 @@ int main(int argc, char **argv)
 	break;
       case 'D':
 	debuglevel |= DL_COMPILER_DISASSEMBLY;
+	break;
+      case 's':
+	debuglevel |= DL_STATISTICS;
 	break;
       case 't':
 	debuglevel |= DL_RUNTIME_TRACE;

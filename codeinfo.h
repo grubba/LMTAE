@@ -1,9 +1,13 @@
 /*
- * $Id: codeinfo.h,v 1.4 1996/07/17 16:01:09 grubba Exp $
+ * $Id: codeinfo.h,v 1.5 1996/08/11 17:36:08 grubba Exp $
  *
  * Functions for handling segments of code.
  *
  * $Log: codeinfo.h,v $
+ * Revision 1.4  1996/07/17 16:01:09  grubba
+ * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
+ * Hopefully all places got patched.
+ *
  * Revision 1.3  1996/07/13 19:32:23  grubba
  * Now defaults to very little debuginfo.
  * Added (un|set)patch().
@@ -70,6 +74,8 @@ struct code_info {
   struct code_info *next;
   U32 maddr;
   U32 flags;
+  U32 num_opcodes;
+  U64 time_run;
   U32 (*code)(struct m_registers *, void *);	/* Returns the next PC */
   U32 *codeend;
   U32 checksum;

@@ -1,9 +1,13 @@
 /*
- * $Id: types.h,v 1.1 1996/07/17 16:02:07 grubba Exp $
+ * $Id: types.h,v 1.2 1996/08/11 17:36:22 grubba Exp $
  *
  * Common types used by the LMTAE project
  *
- * $Log$
+ * $Log: types.h,v $
+ * Revision 1.1  1996/07/17 16:02:07  grubba
+ * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
+ * Hopefully all places got patched.
+ *
  *
  */
 
@@ -16,11 +20,9 @@ typedef signed short		S16;
 typedef unsigned short		U16;
 typedef signed			S32;
 typedef unsigned		U32;
-#ifdef DEFINE_TYPE_LONG_LONG
 /* It should be possible to use __extension__ here */
 typedef signed long long	S64;
 typedef unsigned long long	U64;
-#endif /* DEFINE_TYPE_LONG_LONG */
 
 #define s8	S8
 #define u8	U8
