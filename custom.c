@@ -1,9 +1,12 @@
 /*
- * $Id: custom.c,v 1.7 1998/02/10 17:20:50 marcus Exp $
+ * $Id: custom.c,v 1.8 1998/02/11 00:06:36 marcus Exp $
  *
  * Custom chip emulation
  *
  * $Log: custom.c,v $
+ * Revision 1.7  1998/02/10 17:20:50  marcus
+ * Synchronized raster counter.
+ *
  * Revision 1.6  1998/02/10 15:45:28  marcus
  * Fixed read signedness.
  *
@@ -41,6 +44,7 @@
 #include "recomp.h"
 #include "interrupt.h"
 #include "hardware.h"
+#include "timebase.h"
 
 /*
  * Globals
