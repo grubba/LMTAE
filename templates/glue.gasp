@@ -1,9 +1,13 @@
 	!
-	! $Id: glue.gasp,v 1.2 1996/07/17 19:17:03 grubba Exp $
+	! $Id: glue.gasp,v 1.3 1996/08/10 18:52:05 grubba Exp $
 	!
 	! Assembler template functions for the M68000 to Sparc recompiler.
 	!
 	! $Log: glue.gasp,v $
+	! Revision 1.2  1996/07/17 19:17:03  grubba
+	! Implemented interrupts. None generated yet though.
+	! Implemented STOP.
+	!
 	! Revision 1.1.1.1  1996/06/30 23:51:55  grubba
 	! Entry into CVS
 	!
@@ -75,6 +79,7 @@ s_pre_amble:
 	! s_fix_sr()
 	!
 	.globl	s_fix_sr
+s_fix_sr_xnzvc:
 s_fix_sr:
 	! Fix the SR
 	and	-32, %sr, %sr
@@ -84,13 +89,45 @@ s_fix_sr:
 	bz,a	0f
 	or	0x04, %sr, %sr
 	! C => V?	Probably not :-(
-0:	bcs,a	1f
+0:
+	bcs,a	1f
 	or	0x11, %sr, %sr
-1:	bvs,a	0f
+1:
+	bvs,a	0f
 	or	0x02, %sr, %sr
 0:
 	.long	0
-	
+
+s_fix_sr_nzvc:
+	and	-16, %sr, %sr
+	bneg,a	0f
+	or	0x08, %sr, %sr
+	be,a	0f
+	or	0x04, %sr, %sr
+0:
+	bvs,a	0f
+	or	0x02, %sr, %sr
+0:
+	bcs,a	0f
+	or	0x01, %sr, %sr
+0:
+	.long	0
+
+s_fix_sr_nz00:
+	and	-16, %sr, %sr
+	blt,a	0f
+	or	0x08, %sr, %sr
+	be,a	0f
+	or	0x04, %sr, %sr
+0:
+	.long	0
+
+s_fix_sr_z:
+	be,a	0f
+	or	0x04, %sr, %sr
+	and	-0x05, %sr, %sr
+0:
+	.long	0
 
 	!
 	! s_raise_exception (vector:%o2)
@@ -316,6 +353,17 @@ s_vec_tab:
 	.long	s_stop
 	.long	0
 
+
+	!
+	! SR post patch table
+	!
+	.globl	s_sr_post_tab
+s_sr_post_tab:
+	.long	0
+	.long	s_fix_sr_xnzvc
+	.long	s_fix_sr_nzvc
+	.long	s_fix_sr_nz00
+	.long	s_fix_sr_z
 
 	!
 	! Load
