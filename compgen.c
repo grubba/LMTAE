@@ -1,9 +1,12 @@
 /*
- * $Id: compgen.c,v 1.11 1996/07/15 14:35:22 grubba Exp $
+ * $Id: compgen.c,v 1.12 1996/07/15 20:32:10 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.11  1996/07/15 14:35:22  grubba
+ * Added Left and Right to the various shift mnemonics.
+ *
  * Revision 1.10  1996/07/14 15:14:58  grubba
  * Fixed bug with ROd.
  * Added MULS.
@@ -2084,185 +2087,106 @@ void as_add(FILE *fp, USHORT opcode, const char *mnemonic)
   fputs("	addcc	%acc0, %acc1, %acc0\n", fp);
 }
 
-int head_asd(USHORT opcode)
+int head_shift(USHORT opcode)
 {
-  return (((opcode & 0xf1ff) == 0xe000) ||
-	  ((opcode & 0xfff8) == 0xe020) ||
-	  (opcode == 0xe0d0));
+  return(((opcode & 0xf0ff) == 0xe0c0)	/* Memory shift */ ||
+	 ((opcode & 0xf027) == 0xe000)	/* Immediate shift */ ||
+	 ((opcode & 0xfe27) == 0xe020)); /* Register shift */
 }
 
-void tab_lsd(FILE *fp, USHORT opcode, const char *mnemonic);
-
-void tab_asd(FILE *fp, USHORT opcode, const char *mnemonic)
+void tab_shift_mem(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  if (opcode & 0x0100) {
-    /* FIXME: LSL doesn't set V on sign change which ASL should do */
-    /* ASL is equiv with LSL */
-    if ((opcode & 0x00c0) == 0x00c0) {
-      /* Memory shift */
-      tab_lsd(fp, (opcode & 0x013f) | 0xe2c0, mnemonic);
-    } else {
-      /* Register shift */
-      tab_lsd(fp, (opcode & 0x0fe7) | 0xe008, mnemonic);
-    }
-  } else {
-    if ((opcode & 0x00c0) == 0x00c0) {
-      /* Memory shift */
-      fprintf(fp, "0x%08x, opcode_e0d0",
-	      TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f) |
-	      TEF_WRITE_BACK);
-    } else {
-      /* Register shift */
-      if (opcode & 0x0020) {
-	/* Register shift count */
-	fprintf(fp, "0x%08x, opcode_%04x",
-		TEF_SRC | TEF_SRC_LOAD | TEF_SRC_BYTE | (opcode & 0x0e00) |
-		TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
-		opcode & 0xf020);
-      } else {
-	/* Immediate shift count */
-	fprintf(fp, "0x%08x, opcode_%04x",
-		TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
-		opcode & 0xfe20);
-      }
-    }
-  }
+  fprintf(fp, "0x%08x, opcode_%04x",
+	  TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f) |
+	  TEF_WRITE_BACK, opcode & 0xffc0);
 }
 
-void as_asd(FILE *fp, USHORT opcode, const char *mnemonic)
+void tab_shift_imm(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  /* ASR */
-  /* FIXME: No support for C or X */
-  fprintf(fp, "	and	-32, %%sr, %%sr\n");
-  if ((opcode & 0x00c0) == 0x00c0) {
-    /* Memory shift */
-    fprintf(fp,
-	    "	btst	1, %%acc0\n"
-	    "	sra	%%acc0, 1, %%acc0\n"
-	    "	bne,a	0f\n"
-	    "	or	0x11, %%sr, %%sr\n"
-	    "0:\n"
-	    "	cmp	%%acc0, %%g0\n"
-	    "	blt,a	0f\n"
-	    "	or	8, %%sr, %%sr\n"
-	    "	be,a	0f\n"
-	    "	or	4, %%sr, %%sr\n"
-	    "0:\n");
-  } else {
-    /* Register shift */
-    if (opcode & 0x0020) {
-      /* Register shift count */
-      fprintf(fp,
-	      "	and	0x3f, %%acc1, %%acc1\n"
-	      "	sra	%%acc0, %%acc1, %%acc0\n"
-	      "	cmp	%%acc0, %%g0\n"
-	      "	blt,a	0f\n"
-	      "	or	8, %%sr, %%sr\n"
-	      "	be,a	0f\n"
-	      "	or	4, %%sr, %%sr\n"
-	      "0:\n");
-    } else {
-      /* Immediate shift count */
-      fprintf(fp,
-	      "	btst	0x%02x, %%acc0\n"
-	      "	sra	%%acc0, 0x%02x, %%acc0\n"
-	      " bne,a	0f\n"
-	      "	or	0x11, %%sr, %%sr\n"
-	      "0:\n"
-	      "	cmp	%%acc0, %%g0\n"
-	      "	blt,a	0f\n"
-	      "	or	8, %%sr, %%sr\n"
-	      "	be,a	0f\n"
-	      "	or	4, %%sr, %%sr\n"
-	      "0:\n",
-	      (opcode & 0x0e00)?(1<<(((opcode & 0x0e00)>>9)-1)):0x80,
-	      (opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
-    }
-  }
+  fprintf(fp, "0x%08x, opcode_%04x",
+	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK |
+	  TEF_SRC_QUICK8 | ((opcode & 0x0e00)?(opcode & 0x0e00):0x1000),
+	  opcode & 0xfff8);
 }
 
-int head_lsd(USHORT opcode)
+void tab_shift_reg(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  return(((opcode & 0xfef8) == 0xe028) ||
-	 ((opcode & 0xf038) == 0xe008) ||
-	 ((opcode & 0xfeff) == 0xe2d0));
+  fprintf(fp, "0x%08x, opcode_%04x",
+	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_BYTE | (opcode & 0x0e00) |
+	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
+	  opcode & 0xf1f8);
 }
 
-void tab_lsd(FILE *fp, USHORT opcode, const char *mnemonic)
+void as_asr_mem(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  if ((opcode & 0x00c0) == 0x00c0) {
-    /* Memory shift */
-    fprintf(fp, "0x%08x, opcode_%04x",
-	    TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f) |
-	    TEF_WRITE_BACK, (opcode & 0xffc0) | 0x0010);
-  } else {
-    /* Register shift */
-    if (opcode & 0x0020) {
-      /* Register shift count */
-      fprintf(fp, "0x%08x, opcode_%04x",
-	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_BYTE | (opcode & 0x0e00) |
-	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
-	      opcode & 0xf138);
-    } else {
-      /* Immediate shift count */
-      fprintf(fp, "0x%08x, opcode_%04x",
-	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
-	      opcode);
-    }
-  }
-}
-
-void as_lsd(FILE *fp, USHORT opcode, const char *mnemonic)
-{
-  /* FIXME: Need to fix SR! */
-  /* FIXME: C and X bits are not yet supported here! */
-  fprintf(fp, "	and	-32, %%sr, %%sr\n");
-  if ((opcode & 0x00c0) == 0x00c0) {
-    /* Memory shift */
-    if (opcode & 0x0100) {
-      /* LSL */
-      fprintf(fp,
-	      "	btst	0x80, %%acc0\n"
-	      "	sll	%%acc0, 1, %%acc0\n"
-	      "	bne,a	0f\n"
-	      "	or	0x11, %%sr, %%sr\n"
-	      "0:\n");
-    } else {
-      /* LSR */
-      fprintf(fp,
-	      "	btst	1, %%acc0\n"
-	      "	srl	%%acc0, 1, %%acc0\n"
-	      "	bne,a	0f\n"
-	      "	or	0x11, %%sr, %%sr\n"
-	      "0:\n");
-    }
-  } else {
-    /* Register shift */
-    if (opcode & 0x0020) {
-      /* Register */
-      fprintf(fp, "	and	0x3f, %%acc1, %%acc1\n");
-    } else {
-      /* Immediate */
-      fprintf(fp, "	mov	0x%02x, %%acc1\n",
-	      (opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
-    }
-
-    if (opcode & 0x0100) {
-      /* LSL */
-      fprintf(fp, "	sll	%%acc0, %%acc1, %%acc0\n");
-    } else {
-      /* LSR */
-      if (!(opcode & 0x00c0)) {
-	fprintf(fp, "	and	0xff, %%acc0, %%acc0\n");
-      } else if ((opcode & 0x00c0) == 0x0040) {
-	fprintf(fp,
-		"	sethi	%%hi(0xffff0000), %%o0\n"
-		"	andn	%%acc0, %%o0, %%acc0\n");
-      }
-      fprintf(fp, "	srl	%%acc0, %%acc1, %%acc0\n");
-    }
-  }
   fprintf(fp,
+	  "	and	-32, %%sr, %%sr\n"
+	  "	btst	1, %%acc0\n"
+	  "	sra	%%acc0, 1, %%acc0\n"
+	  "	bne,a	0f\n"
+	  "	or	0x11, %%sr, %%sr\n"
+	  "0:\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	blt,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n");
+}
+
+void as_asr_imm(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  int shiftval = ((opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
+
+  fprintf(fp,
+	  "	and	-32, %%sr, %%sr\n"
+	  "	btst	0x%02x, %%acc0\n"
+	  "	sra	%%acc0, 0x%02x, %%acc0\n",
+	  (1 << (shiftval - 1)),
+	  shiftval);
+  fprintf(fp,
+	  "	bne,a	0f\n"
+	  "	or	0x11, %%sr, %%sr\n"
+	  "0:\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	blt,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n");
+}
+
+void as_asr_reg(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  /* FIXME: C & X support fails on shifts > 31bits */
+  fprintf(fp,
+	  "	sll	%%acc0, 1, %%o0\n"
+	  "	and	0x3f, %%acc1, %%acc1\n"
+	  "	and	-32, %%sr, %%sr\n"
+	  "	sra	%%o0, %%acc1, %%o0\n"
+	  "	sra	%%acc0, %%acc1, %%acc0\n"
+	  "	btst	1, %%o0\n"
+	  "	bne,a	0f\n"
+	  "	or	0x11, %%sr, %%sr\n"
+	  "0:\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	blt,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n");
+}
+
+void as_lsr_mem(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  /* Memory shift */
+  fprintf(fp,
+	  "	and	-32, %%sr, %%sr\n"
+	  "	btst	1, %%acc0\n"
+	  "	srl	%%acc0, 1, %%acc0\n"
+	  "	bne,a	0f\n"
+	  "	or	0x11, %%sr, %%sr\n"
+	  "0:\n"
 	  "	cmp	%%acc0, %%g0\n"
 	  "	ble,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
@@ -2271,37 +2195,115 @@ void as_lsd(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-int head_rod(USHORT opcode)
+void as_lsr_imm(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  return(((opcode & 0xf038) == 0xe018) ||
-	 ((opcode & 0xfe38) == 0xe038) ||
-	 ((opcode & 0xfec0) == 0xe6c0));
+  int shiftval = ((opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
+
+  fprintf(fp, "	and	-32, %%sr, %%sr\n");
+
+  if ((opcode & 0xc0) == 0x40) {
+    fprintf(fp, "	sethi	%%hi(0xffff0000), %%o0\n");
+  }
+
+  fprintf(fp, "	btst	0x%02x, %%acc0\n", (1 << (shiftval - 1)));
+
+  if (!(opcode & 0x00c0)) {
+    fprintf(fp,
+	    "	and	0xff, %%acc0, %%acc0\n");
+  } else if ((opcode & 0x00c0) == 0x0040) {
+    fprintf(fp,
+	    "	andn	%%acc0, %%o0, %%acc0\n");
+  }
+  
+  fprintf(fp, "	srl	%%acc0, 0x%02x, %%acc0\n", shiftval);
+  fprintf(fp, 
+	  "	bne,a	0f\n"
+	  "	or	0x11, %%sr, %%sr\n"
+	  "0:\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	ble,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n");
 }
 
-void tab_rod(FILE *fp, USHORT opcode, const char *mnemonic)
+void as_lsr_reg(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  if ((opcode & 0x00c0) == 0x00c0) {
-    /* Memory rotate */
+  /* FIXME: C & X support fails on shifts > 31bits */
 
-    fprintf(fp, "0x%08x, opcode_%04x",
-	    TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f) |
-	    TEF_WRITE_BACK, (opcode & 0xffc0));
-  } else {
-    /* Register rotate */
+  fprintf(fp, "	and	-32, %%sr, %%sr\n");
 
-    if (opcode & 0x0020) {
-      /* Register rotate count */
-      fprintf(fp, "0x%08x, opcode_%04x",
-	      TEF_SRC | TEF_SRC_WORD | (opcode & 0x0e00) | TEF_SRC_LOAD |
-	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
-	      (opcode & 0xf1f8));
-    } else {
-      /* Immediate rotate count */
-      fprintf(fp, "0x%08x, opcode_%04x",
-	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
-	      (opcode & 0xfff8));
-    }
+  if ((opcode & 0xc0) == 0x40) {
+    fprintf(fp, "	sethi	%%hi(0xffff0000), %%o0\n");
   }
+
+  fprintf(fp, "	and	0x3f, %%acc1, %%acc1\n");
+
+  if (!(opcode & 0x00c0)) {
+    fprintf(fp,
+	    "	and	0xff, %%acc0, %%o0\n");
+  } else if ((opcode & 0x00c0) == 0x0040) {
+    fprintf(fp,
+	    "	andn	%%acc0, %%o0, %%o0\n");
+  }
+  fprintf(fp,
+	  "	sll	%%acc0, 1, %%o1\n"
+	  "	srl	%%o0, %%acc1, %%acc0\n"
+	  "	srl	%%o1, %%acc1, %%o1\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	ble,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n"
+	  "	btst	1, %%o1\n"
+	  "	bne,a	0f\n"
+	  "	or	0x11, %%sr, %%sr\n"
+	  "0:\n");
+}
+
+void as_lsl(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  /* FIXME: Need to fix SR! */
+  /* FIXME: C and X bits are not yet supported here! */
+  fprintf(fp, "	and	-32, %%sr, %%sr\n");
+  if ((opcode & 0x00c0) == 0x00c0) {
+    /* Memory shift */
+    fprintf(fp,
+	    "	btst	0x80, %%acc0\n"
+	    "	sll	%%acc0, 1, %%acc0\n"
+	    "	bne,a	0f\n"
+	    "	or	0x11, %%sr, %%sr\n"
+	    "0:\n");
+  } else {
+    /* Register shift */
+    if (opcode & 0x0020) {
+      /* Register */
+      fprintf(fp,
+	      "	mov	1, %%o0\n"
+	      "	and	0x3f, %%acc1, %%acc1\n"
+	      "	sll	%%o0, %%acc1, %%o0\n" );
+    } else {
+      /* Immediate */
+      fprintf(fp,
+	      "	mov	0x%08x, %%o0\n"
+	      "	mov	0x%02x, %%acc1\n",
+	      1 << ((opcode & 0x0e00)?((opcode & 0x0e00)>>9):8),
+	      (opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
+    }
+
+    fprintf(fp,
+	    "	btst	%%acc0, %%o0\n"
+	    "	sll	%%acc0, %%acc1, %%acc0\n");
+  }
+  fprintf(fp,
+	  "	cmp	%%acc0, %%g0\n"
+	  "	ble,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n");
 }
 
 void as_rod(FILE *fp, USHORT opcode, const char *mnemonic)
@@ -2889,31 +2891,31 @@ struct opcode_info opcodes[] = {
   { 0xf130, 0xd100, "ADDX", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xf000, 0xd000, "ADD", head_add, tab_add, as_add, comp_default },
 
-  { 0xffc0, 0xe0c0, "ASR", head_asd, tab_asd, as_asd, comp_default },
-  { 0xffc0, 0xe1c0, "ASL", head_asd, tab_asd, as_asd, comp_default },
-  { 0xffc0, 0xe2c0, "LSR", head_lsd, tab_lsd, as_lsd, comp_default },
-  { 0xffc0, 0xe3c0, "LSL", head_lsd, tab_lsd, as_lsd, comp_default },
-  { 0xffc0, 0xe4c0, "ROXR", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xffc0, 0xe5c0, "ROXL", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xffc0, 0xe7c0, "ROR", head_rod, tab_rod, as_rod, comp_default },
-  { 0xffc0, 0xe7c0, "ROL", head_rod, tab_rod, as_rod, comp_default },
+  { 0xffc0, 0xe0c0, "ASR", head_shift, tab_shift_mem, as_asr_mem, comp_default },
+  { 0xffc0, 0xe1c0, "ASL", head_shift, tab_shift_mem, as_lsl, comp_default }, /**/
+  { 0xffc0, 0xe2c0, "LSR", head_shift, tab_shift_mem, as_lsr_mem, comp_default },
+  { 0xffc0, 0xe3c0, "LSL", head_shift, tab_shift_mem, as_lsl, comp_default },
+  { 0xffc0, 0xe4c0, "ROXR", head_shift, tab_shift_mem, as_illegal, comp_default },
+  { 0xffc0, 0xe5c0, "ROXL", head_shift, tab_shift_mem, as_illegal, comp_default },
+  { 0xffc0, 0xe7c0, "ROR", head_shift, tab_shift_mem, as_rod, comp_default },
+  { 0xffc0, 0xe7c0, "ROL", head_shift, tab_shift_mem, as_rod, comp_default },
   { 0xf0c0, 0xe0c0, "UNKNOWN", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf138, 0xe000, "ASR", head_asd, tab_asd, as_asd, comp_default },
-  { 0xf138, 0xe100, "ASL", head_asd, tab_asd, as_asd, comp_default },
-  { 0xf138, 0xe008, "LSR", head_lsd, tab_lsd, as_lsd, comp_default },
-  { 0xf138, 0xe108, "LSL", head_lsd, tab_lsd, as_lsd, comp_default },
-  { 0xf138, 0xe010, "ROXR", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf138, 0xe110, "ROXL", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf138, 0xe018, "ROR", head_rod, tab_rod, as_rod, comp_default },
-  { 0xf138, 0xe118, "ROL", head_rod, tab_rod, as_rod, comp_default },
-  { 0xf138, 0xe020, "ASR", head_asd, tab_asd, as_asd, comp_default },
-  { 0xf138, 0xe120, "ASL", head_asd, tab_asd, as_asd, comp_default },
-  { 0xf138, 0xe028, "LSR", head_lsd, tab_lsd, as_lsd, comp_default },
-  { 0xf138, 0xe128, "LSL", head_lsd, tab_lsd, as_lsd, comp_default },
-  { 0xf138, 0xe030, "ROXR", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf138, 0xe130, "ROXL", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf138, 0xe038, "ROR", head_rod, tab_rod, as_rod, comp_default },
-  { 0xf138, 0xe138, "ROL", head_rod, tab_rod, as_rod, comp_default },
+  { 0xf138, 0xe000, "ASR", head_shift, tab_shift_imm, as_asr_imm, comp_default },
+  { 0xf138, 0xe100, "ASL", head_shift, tab_shift_imm, as_lsl, comp_default }, /**/
+  { 0xf138, 0xe008, "LSR", head_shift, tab_shift_imm, as_lsr_imm, comp_default },
+  { 0xf138, 0xe108, "LSL", head_shift, tab_shift_imm, as_lsl, comp_default },
+  { 0xf138, 0xe010, "ROXR", head_shift, tab_shift_imm, as_illegal, comp_default },
+  { 0xf138, 0xe110, "ROXL", head_shift, tab_shift_imm, as_illegal, comp_default },
+  { 0xf138, 0xe018, "ROR", head_shift, tab_shift_imm, as_rod, comp_default },
+  { 0xf138, 0xe118, "ROL", head_shift, tab_shift_imm, as_rod, comp_default },
+  { 0xf138, 0xe020, "ASR", head_shift, tab_shift_reg, as_asr_reg, comp_default },
+  { 0xf138, 0xe120, "ASL", head_shift, tab_shift_reg, as_lsl, comp_default }, /**/
+  { 0xf138, 0xe028, "LSR", head_shift, tab_shift_reg, as_lsr_reg, comp_default },
+  { 0xf138, 0xe128, "LSL", head_shift, tab_shift_reg, as_lsl, comp_default },
+  { 0xf138, 0xe030, "ROXR", head_shift, tab_shift_reg, as_illegal, comp_default },
+  { 0xf138, 0xe130, "ROXL", head_shift, tab_shift_reg, as_illegal, comp_default },
+  { 0xf138, 0xe038, "ROR", head_shift, tab_shift_reg, as_rod, comp_default },
+  { 0xf138, 0xe138, "ROL", head_shift, tab_shift_reg, as_rod, comp_default },
 
   { 0xf000, 0xf000, "LINE F", head_line_f, tab_line_f, as_line_f, comp_default },
 
