@@ -1,9 +1,13 @@
 /*
- * $Id: compgen.c,v 1.14 1996/07/16 22:36:56 grubba Exp $
+ * $Id: compgen.c,v 1.15 1996/07/16 22:42:39 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.14  1996/07/16 22:36:56  grubba
+ * The last bug-fix saved the registers to memory instead of the registerbank!
+ * Fixed same problem with XORI_SR.
+ *
  * Revision 1.13  1996/07/16 22:28:54  grubba
  * Fixed major bug with ANDI_SR -- It didn't flip stacks when going to Usermode.
  * Implemented ADDX.
@@ -706,7 +710,7 @@ void as_eori_sr(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	sethi	%%hi(0x2000), %%o0\n"
 	  "	btst	%%o0, %%acc1\n"
 	  "	be	0f\n"
-	  "	xor	%acc1, %sr, %sr\n"
+	  "	xor	%%acc1, %%sr, %%sr\n"
 	  "	! Time to flip stacks.\n"
 	  "	ld	[ %%regs + _A7 ], %%o0\n"
 	  "	st	%%o0, [ %%regs + _SSP ]\n"
