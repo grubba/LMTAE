@@ -36,3 +36,6 @@ core
 /opcodes.h
 /memory.gasp
 /rtest
+/blitgen
+/blittest
+/minterms.c
