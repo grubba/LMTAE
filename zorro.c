@@ -1,7 +1,10 @@
 /*
- * $Id: zorro.c,v 1.1 1996/07/11 23:02:08 marcus Exp $
+ * $Id: zorro.c,v 1.2 1996/07/12 13:10:49 marcus Exp $
  *
- * $Log: $
+ * $Log: zorro.c,v $
+ * Revision 1.1  1996/07/11 23:02:08  marcus
+ * Real ZorroII emulation
+ *
  *
  */
 
@@ -14,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <dlfcn.h>
@@ -290,9 +294,21 @@ void zorro_addram(int megs)
   }
 }
 
-void zorro_addboard(char *name, int fd, void *driver)
+void zorro_addboard(char *name, char *romname, char *drivername)
 {
   struct board *b;
+  int fd;
+  void *driver=NULL;
+
+  if((fd=open(romname, O_RDONLY))<0) {
+    perror(romname);
+    return;
+  }
+  if(drivername && !(driver=dlopen(drivername, RTLD_NOW))) {
+    fprintf(stderr, "%s: %s\n", drivername, dlerror());
+    close(fd);
+    return;
+  }
 
   if((b=createboard(name))) {
     if((b->rom_fd=fd)>=0) {
@@ -313,6 +329,9 @@ void zorro_addboard(char *name, int fd, void *driver)
       if((init_func=(void (*)())dlsym(driver, "board_init")))
 	init_func();
     }
+  } else {
+    perror(name);
+    if(driver) dlclose(driver);
+    close(fd);
   }
 }
-
