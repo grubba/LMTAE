@@ -1,9 +1,12 @@
 /*
- * $Id: recomp.c,v 1.3 1996/07/05 02:10:30 grubba Exp $
+ * $Id: recomp.c,v 1.4 1996/07/08 21:16:00 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.3  1996/07/05 02:10:30  grubba
+ * Switched two instances of \n to \r in compile_and_go().
+ *
  * Revision 1.2  1996/07/01 19:16:59  grubba
  * Implemented ASL and ASR.
  * Changed semantics for new_codeinfo(), it doesn't allocate space for the code.
@@ -41,9 +44,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/mman.h>
+
+#include <thread.h>
 
 #include "recomp.h"
 #include "codeinfo.h"
@@ -187,6 +193,10 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
       ci->next = segment->codeinfo;
       segment->codeinfo = ci;
 
+#ifdef DEBUG
+      disassemble(maddr, mend);
+#endif /* DEBUG */
+
       fprintf(stderr, "Execute!\n");
     }
 
@@ -201,6 +211,29 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
   }
 }
 
+void *cpu_thread_main(void *args)
+{
+  struct m_registers regs = {
+    0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,
+    0,0,0,0,
+    0,0xa00000
+  };
+  ULONG start_addr = ((ULONG *)(memory + 0x00f80000))[1];
+  regs.a7 = regs.ssp = ((ULONG *)(memory + 0x00f80000))[0];
+  regs.sr = 0x00002700;
+
+#ifdef DEBUG
+	    fprintf(stderr, "Starting CPU at 0x%08lx\n", start_addr);
+#endif /* DEBUG */
+
+  compile_and_go(&regs, start_addr);
+
+  /* Probably not reached */
+
+  return(NULL);
+}
+
 int main(int argc, char **argv)
 {
   int zfd = -1;
@@ -208,57 +241,50 @@ int main(int argc, char **argv)
   unsigned char *rommem;
 
   if ((zfd = open("/dev/zero", O_RDONLY)) >= 0) {
-    if ((memory = mmap(NULL, 16*1024*1024, PROT_READ|PROT_WRITE,
+    if ((memory = (UBYTE *)mmap((caddr_t)NULL, 16*1024*1024, PROT_READ|PROT_WRITE,
 		       MAP_PRIVATE, zfd, 0))) {
       if ((romfd = open("./ROM.dump", O_RDONLY)) >= 0) {
-	if ((rommem = mmap(memory + 0x00f80000, 512*1024, PROT_READ,
-			   MAP_SHARED|MAP_FIXED, romfd, 0))) {
+	if ((rommem = (UBYTE *)mmap((caddr_t)(memory + 0x00f80000), 512*1024,
+				    PROT_READ, MAP_SHARED|MAP_FIXED, romfd, 0))) {
 	  if (rommem == memory + 0x00f80000) {
-	    struct m_registers regs = {
-	      0,0,0,0,0,0,0,0,
-	      0,0,0,0,0,0,0,0,
-	      0,0,0,0,
-	      0,0xa00000
-	    };
-	    ULONG start_addr = ((ULONG *)rommem)[1];
-	    regs.a7 = regs.ssp = ((ULONG *)rommem)[0];
-	    regs.sr = 0x00002700;
+	    thread_t cpu_thread;
 
 #ifdef DEBUG
-	    fprintf(stderr, "Starting CPU at 0x%08lx\n", start_addr);
-#endif /* DEBUG */
+	    printf("Kickstart V%d.%d\n"
+		   "exec.library V%d.%d\n",
+		   ((USHORT *)(memory + 0x00f8000c))[0],
+		   ((USHORT *)(memory + 0x00f8000c))[1],
+		   ((USHORT *)(memory + 0x00f8000c))[2],
+		   ((USHORT *)(memory + 0x00f8000c))[3]);
+	    if (memory[0x00f80018]) {
+	      /* Old style kickstart */
+	      unsigned char *cr;
+	      cr = (unsigned char *)strchr((char *)memory + 0x00f80018, '\0') + 1;
+	      while (!*cr) {
+		cr++;
+	      }
+	      if (cr[0] == 255) {
+		cr = (unsigned char *)(((ULONG)(cr + 4)) & ~3);
+	      }
+	      printf("%s", cr);
+	    } else {
+	      /* New style kickstart */
+	      int i;
+	      unsigned char *cr = memory + 0x00f80019;
 
-	    compile_and_go(&regs, start_addr);
-
-#if 0
-	    struct code_info ci = {
-	      NULL,
-	      0xf800d2,
-	      0,
-	      NULL,
-	      NULL,
-	      0,
-	    };
-	    
-	    if ((ci.code = (void *)calloc(4, 1024))) {
-	      ULONG mend;
-	      ULONG *dump;
-
-	      printf("Compiling...\n");
-	      mend = compile(&ci);
-
-	      printf("Motorola code from 0x00f800d2 to 0x%08x\n", mend);
-	      printf("Sparc code from 0x%08x to 0x%08x\n", ci.code, ci.codeend);
-	      for (dump = (void *)ci.code; dump <= ci.codeend;) {
-		int j;
-		printf("%08x: ", dump);
-		for (j = 0; j < 8; j++) {
-		  printf("%08x ", *(dump++));
-		}
-		printf("\n");
+	      for (i = 0; i < 5; i++) {
+		printf("%s\n", cr);
+		cr = (unsigned char *)strchr((char *)cr, '\0') + 1;
 	      }
 	    }
-#endif /* 0 */
+#endif /* DEBUG */
+
+	    reset_hw();
+
+	    if (thr_create(NULL, 0, cpu_thread_main, NULL,
+			   0, &cpu_thread) == 0) {
+	      thr_join(cpu_thread, NULL, NULL);
+	    }
 	  } else {
 	    fprintf(stderr, "Bad ROM-map\n");
 	  }
