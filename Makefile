@@ -1,9 +1,12 @@
 #
-# $Id: Makefile,v 1.1.1.1 1996/06/30 23:51:51 grubba Exp $
+# $Id: Makefile,v 1.2 1996/07/01 00:13:53 grubba Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.1.1.1  1996/06/30 23:51:51  grubba
+# Entry into CVS
+#
 # Revision 1.4  1996/06/20 22:10:58  grubba
 # Now compiles the opcode table in parts.
 # Now only recompiles a gasp file if it has changed sinc the last time.
@@ -25,7 +28,7 @@
 AS = gas
 CC = gcc
 GASP = gasp
-CFLAGS = -g -O4711 -Wall -pedantic -DDEBUG -Iamiga/os-include
+CFLAGS = -g -O4711 -Wall -pedantic -DDEBUG -IAmigaInclude
 
 OPCODES = opcodes/opcode_0000.o opcodes/opcode_1000.o \
 	  opcodes/opcode_2000.o opcodes/opcode_3000.o \
@@ -46,7 +49,13 @@ TABLES = tables/opcode_tab_0000.o tables/opcode_tab_1000.o \
 	tables/opcode_tab_e000.o tables/opcode_tab_f000.o \
 	tables/more_tables.o
 
-all : stest citest compgen recomp rtest
+all : AmigaInclude ROM.dump citest compgen recomp rtest
+
+AmigaInclude :
+	ln -s /users/grubba/AmigaInclude .
+
+ROM.dump :
+	ln -s /users/grubba/AmigaROM/kick37175.A500 ROM.dump
 
 clean :
 	-rm *.o opcodes/*.o templates/*.o tables/*.o
@@ -65,8 +74,6 @@ recomp : recomp.o compglue.o codeinfo.o hardware.o\
 citest : citest.o codeinfo.o
 
 compgen : compgen.o
-
-stest : stest.o srtest.o
 
 opcodes.o : $(OPCODES)
 	ld -r -o $@ $^

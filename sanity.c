@@ -1,9 +1,12 @@
 /*
- * $Id: sanity.c,v 1.1.1.1 1996/06/30 23:51:50 grubba Exp $
+ * $Id: sanity.c,v 1.2 1996/07/01 00:13:56 grubba Exp $
  *
  * Sanity checks for the emulated computer.
  *
  * $Log: sanity.c,v $
+ * Revision 1.1.1.1  1996/06/30 23:51:50  grubba
+ * Entry into CVS
+ *
  * Revision 1.1  1996/06/30 23:27:11  grubba
  * Initial revision
  *
@@ -17,7 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "amiga/os-include/exec/execbase.h"
+#include "exec/execbase.h"
 
 #include "m68k.h"
 #include "codeinfo.h"
