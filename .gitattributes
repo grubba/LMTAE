@@ -28,7 +28,6 @@
 /hardware.h foreign_ident
 /m68k.h foreign_ident
 /m68k.txt foreign_ident
-/memgen.c foreign_ident
 /peephole.c foreign_ident
 /peephole.h foreign_ident
 /recomp.c foreign_ident
