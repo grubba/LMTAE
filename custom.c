@@ -1,9 +1,14 @@
 /*
- * $Id: custom.c,v 1.1 1996/07/19 16:46:10 grubba Exp $
+ * $Id: custom.c,v 1.2 1996/07/21 16:16:10 grubba Exp $
  *
  * Custom chip emulation
  *
- * $Log$
+ * $Log: custom.c,v $
+ * Revision 1.1  1996/07/19 16:46:10  grubba
+ * Cleaned up interrupt handling.
+ * Cleaned up custom chip emulation.
+ * INTENA/INTREQ should work.
+ *
  *
  */
 
@@ -19,6 +24,14 @@
 #include "recomp.h"
 #include "interrupt.h"
 #include "hardware.h"
+
+/*
+ * Globals
+ */
+
+/* Serial port */
+mutex_t serial_lock;
+cond_t serial_signal;
 
 /*
  * Functions
@@ -44,60 +57,27 @@ static S16 custom_read_vhposr(U32 reg)
   return (((S16 *)memory)[0xdff006>>1]);
 }
 
-static void custom_write_intena(U32 reg, U16 val)
+static S16 custom_read_serdatr(U32 reg)
 {
-  U16 new_value;
+  S16 retval;
+  mutex_lock(&serial_lock);
+  retval = ((S16 *)memory)[0xdff018>>1];
+  ((S16 *)memory)[0xdff018>>1] = 0x3000;	/* Always ready to transmit */
 
-  mutex_lock(&irq_ctrl_lock);
-  new_value = ((U16 *)memory)[0xdff01c];
-
-  if (val & 0x8000) {
-#ifdef DEBUG
-    if (val & 0x4000) {
-      printf("Enabling interrupts\n");
-    }
-#endif /* DEBUG */
-    new_value |= val & 0x7fff;
-  } else {
-#ifdef DEBUG
-    if (val & 0x4000) {
-      printf("Disabling interrupts\n");
-    }
-#endif /* DEBUG */
-    new_value &= (~val) & 0x7fff;
+  if (retval & 0x4000) {
+    cond_signal(&serial_signal);
   }
-  ((U16 *)memory)[0xdff01c>>1] = new_value;
+  mutex_unlock(&serial_lock);
 
-  cond_signal(&irq_ctrl_signal);
-  mutex_unlock(&irq_ctrl_lock);
+  return (retval);
 }
 
-static void custom_write_intreq(U32 reg, U16 val)
+static void custom_write_serdat(U32 reg, U16 val)
 {
-  U16 new_value;
-
-  mutex_lock(&irq_ctrl_lock);
-  new_value = ((U16 *)memory)[0xdff01e];
-
-  if (val & 0x8000) {
-#ifdef DEBUG
-    if (val & 0x7fff) {
-      printf("Requesting an interrupt\n");
-    }
-#endif /* DEBUG */
-    new_value |= val & 0x7fff;
-  } else {
-#ifdef DEBUG
-    if (val & 0x7fff) {
-      printf("Clearing an interrupt\n");
-    }
-#endif /* DEBUG */
-    new_value &= (~val) & 0x7fff;
-  }
-  ((U16 *)memory)[0xdff01e>>1] = new_value;
-
-  cond_signal(&irq_ctrl_signal);
-  mutex_unlock(&irq_ctrl_lock);
+  fputc(val & 0xff, stdout);
+  fflush(stdout);
+  memory[0xdff018] |= 0x30;		/* TSRE | TBE */
+  custom_write_intreq(0, 0x8001);	/* TBE Transmit Buffer Empty */
 }
 
 /*
@@ -109,6 +89,31 @@ static void custom_write_intreq(U32 reg, U16 val)
 /*
  * Functions
  */
+
+void *serial_main(void *arg)
+{
+  while (1) {
+    int c = fgetc(stdin);
+
+    if (c == EOF) {
+      printf("Serial buffer received EOF!\nDisconnecting...\n");
+      break;
+    }
+
+    mutex_lock(&serial_lock);
+
+    while (memory[0xdff018] & 0x40) {
+      /* Receive Buffer Full */
+      cond_wait(&serial_signal, &serial_lock);
+    }
+    ((U16 *)memory)[0xdff018>>1] = 0x7300 | (c & 0xff);
+
+    custom_write_intreq(0, 0x8800);	/* RBF Receive Buffer Full */
+
+    mutex_unlock(&serial_lock);
+  }
+  return (NULL);
+}
 
 U32 read_custom(U32 addr, U32 base)
 {
@@ -161,9 +166,17 @@ void reset_custom(U32 base)
 
 void init_custom(void)
 {
+  thread_t serial_thread;
+
   add_hw(0x00dff000, 0x00001000, "Custom Chips", 
 	 NULL, read_custom, read_bad,
 	 write_bad, write_custom, write_bad,
 	 reset_custom);
+
+  /* Serial port */
+  mutex_init(&serial_lock, USYNC_THREAD, NULL);
+  cond_init(&serial_signal, USYNC_THREAD, NULL);
+  thr_create(NULL, 0, serial_main, NULL,
+	     THR_DETACHED | THR_DAEMON, &serial_thread);
 }
 

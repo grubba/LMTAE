@@ -1,9 +1,14 @@
 /*
- * $Id: interrupt.c,v 1.1 1996/07/19 16:46:17 grubba Exp $
+ * $Id: interrupt.c,v 1.2 1996/07/21 16:16:16 grubba Exp $
  *
  * Interrupt handling
  *
- * $Log$
+ * $Log: interrupt.c,v $
+ * Revision 1.1  1996/07/19 16:46:17  grubba
+ * Cleaned up interrupt handling.
+ * Cleaned up custom chip emulation.
+ * INTENA/INTREQ should work.
+ *
  *
  */
 
@@ -41,25 +46,71 @@ cond_t irq_ctrl_signal;		/* Send this when INTENA or INTREQ changes */
  * Functions
  */
 
-void request_interrupt(int intnum)
+/*
+ * Hardware interface
+ */
+
+void custom_write_intena(U32 reg, U16 val)
 {
-  printf("request_interrupt(%d)\n", intnum);
-  if (intnum) {
-    U32 intmask;
-    if (intnum >= 7) {
-      intmask = 0xc0;
-    } else {
-      intmask = 1<<(intnum-1);
+  U16 new_value;
+
+  mutex_lock(&irq_ctrl_lock);
+  new_value = ((U16 *)memory)[0xdff01c];
+
+  if (val & 0x8000) {
+#ifdef DEBUG
+    if (val & 0x4000) {
+      printf("Enabling interrupts\n");
     }
-    mutex_lock(&cpu_irq_lock);
-    cpu_irq |= intmask;
-    mutex_unlock(&cpu_irq_lock);
-    cond_signal(&cpu_irq_signal);
+#endif /* DEBUG */
+    new_value |= val & 0x7fff;
   } else {
-    abort();
+#ifdef DEBUG
+    if (val & 0x4000) {
+      printf("Disabling interrupts\n");
+    }
+#endif /* DEBUG */
+    new_value &= (~val) & 0x7fff;
   }
+  ((U16 *)memory)[0xdff01c>>1] = new_value;
+
+  cond_signal(&irq_ctrl_signal);
+  mutex_unlock(&irq_ctrl_lock);
 }
 
+void custom_write_intreq(U32 reg, U16 val)
+{
+  U16 new_value;
+
+  mutex_lock(&irq_ctrl_lock);
+  new_value = ((U16 *)memory)[0xdff01e];
+
+  if (val & 0x8000) {
+#ifdef DEBUG
+    if (val & 0x7fff) {
+      printf("Requesting an interrupt\n");
+    }
+#endif /* DEBUG */
+    new_value |= val & 0x7fff;
+  } else {
+#ifdef DEBUG
+    if (val & 0x7fff) {
+      printf("Clearing an interrupt\n");
+    }
+#endif /* DEBUG */
+    new_value &= (~val) & 0x7fff;
+  }
+  ((U16 *)memory)[0xdff01e>>1] = new_value;
+
+  cond_signal(&irq_ctrl_signal);
+  mutex_unlock(&irq_ctrl_lock);
+}
+
+/*
+ * CPU interface
+ */
+
+/* Called when the CPU is about to take an interrupt. */
 U32 interrupt(struct m_registers *regs, U8 *mem, U32 nextpc, U32 mask)
 {
   /* NOTE: On entry cpu_irq_lock is locked */
@@ -118,6 +169,7 @@ U32 interrupt(struct m_registers *regs, U8 *mem, U32 nextpc, U32 mask)
   }
 }
 
+/* Called when the CPU executes a STOP instruction */
 U32 s_stop(struct m_registers *regs, U8 *mem, U32 nextpc)
 {
   U32 irq_mask;
@@ -133,7 +185,8 @@ U32 s_stop(struct m_registers *regs, U8 *mem, U32 nextpc)
   return(interrupt(regs, mem, nextpc, irq_mask));
 }
 
-void *interrupt_control_main(void *args)
+/* The interrupt controller */
+static void *interrupt_control_main(void *args)
 {
   volatile U16 *custom = (U16 *)(memory + 0x00dff000);
 
