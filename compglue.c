@@ -1,9 +1,15 @@
 /*
- * $Id: compglue.c,v 1.2 1996/07/01 19:16:49 grubba Exp $
+ * $Id: compglue.c,v 1.3 1996/07/08 21:20:44 grubba Exp $
  *
  * Help functions for the M68000 to Sparc compiler.
  *
  * $Log: compglue.c,v $
+ * Revision 1.2  1996/07/01 19:16:49  grubba
+ * Implemented ASL and ASR.
+ * Changed semantics for new_codeinfo(), it doesn't allocate space for the code.
+ * Added PeepHoleOptimize(). At the moment it just mallocs and copies the code.
+ * Removed some warnings.
+ *
  * Revision 1.1.1.1  1996/06/30 23:51:53  grubba
  * Entry into CVS
  *
@@ -212,6 +218,9 @@ void calc_ea(ULONG **code, ULONG *pc, ULONG flags, ULONG oldpc)
       }
 
       if ((val & 0xf000) && ((val & 0xf000) != 0xf000)) {
+	if (val & 0x8000) {
+	  val |= 0xffff0000;
+	}
 	if (val & 0x3ff) {
 	  /* sethi %hi(val), %ea */
 	  *((*code)++) = 0x2b000000 | (val >> 10);
