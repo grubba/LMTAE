@@ -1,9 +1,12 @@
 /*
- * $Id: hardware.c,v 1.1.1.1 1996/06/30 23:51:53 grubba Exp $
+ * $Id: hardware.c,v 1.2 1996/07/03 14:24:10 grubba Exp $
  *
  * Hardware emulation for the M68000 to Sparc recompiler.
  *
  * $Log: hardware.c,v $
+ * Revision 1.1.1.1  1996/06/30 23:51:53  grubba
+ * Entry into CVS
+ *
  * Revision 1.5  1996/06/30 23:03:59  grubba
  * *** empty log message ***
  *
@@ -60,6 +63,10 @@ ULONG read_custom(ULONG addr, ULONG base)
   if (((addr - 0xdff000) >= 0x180) && ((addr - 0xdff000) < (0x180 + 0x20))) {
     fprintf(stderr, "Reading color %ld (0x%04lx)\n",
 	    ((addr - 0xdff000) - 0x180), (val & 0xffff));
+  } else if (addr == 0xdff006) {
+    fprintf(stderr, "Reading VHPOSR 0x%08lx\n", ((ULONG *)memory)[0xdff004>>2]);
+    ((ULONG *)memory)[0xdff004>>2] += 0x00000101;
+    ((ULONG *)memory)[0xdff004>>2] &= 0x0001ffff;
   }
   return(val);
 }
@@ -140,7 +147,7 @@ struct hw {
 
 struct hw hardware[] = {
   { 0x00bfe000, 0x00bff000, read_bad, read_bad, read_cia, write_bad, write_bad, write_cia, reset_cia },
-  { 0x00dff000, 0x00e00000, read_bad, read_custom, read_bad, write_bad, write_custom, write_bad, reset_custom },
+  { 0x00dff000, 0x00e00000, NULL, read_custom, read_bad, write_bad, write_custom, write_bad, reset_custom },
 };
 
 const int num_hw_banks = 2;
@@ -215,7 +222,13 @@ ULONG load_hw(ULONG maddr)
   int i = find_hw(maddr);
 
   if (i != ~0) {
-    return(hardware[i].read(maddr, hardware[i].start));
+    if (hardware[i].read) {
+      return(hardware[i].read(maddr, hardware[i].start));
+    } else {
+      ULONG res = hardware[i].read_short(maddr, hardware[i].start);
+      res <<= 16;
+      return (res | (hardware[i].read_short(maddr + 2, hardware[i].start) & 0xffff));
+    }
   }
   return(read_bad(maddr, 0));
 }
