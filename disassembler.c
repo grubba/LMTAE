@@ -1,9 +1,12 @@
 /*
- * $Id: disassembler.c,v 1.1 1996/07/08 21:19:47 grubba Exp $
+ * $Id: disassembler.c,v 1.2 1996/07/11 15:41:55 grubba Exp $
  *
  * M68000 disassembler
  *
- * $Log$
+ * $Log: disassembler.c,v $
+ * Revision 1.1  1996/07/08 21:19:47  grubba
+ * Disassembler added.
+ *
  *
  */
 
@@ -50,9 +53,8 @@ void print_multiple_registers(char *buffer, ULONG regs)
     } else if (f) {
       if (f == 2) {
 	print_reg(buffer, i-1);
-      } else {
-	strcat(buffer, "/");
       }
+      strcat(buffer, "/");
       f = 0;
     }
   }

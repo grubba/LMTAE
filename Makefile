@@ -1,9 +1,12 @@
 #
-# $Id: Makefile,v 1.5 1996/07/08 21:22:41 grubba Exp $
+# $Id: Makefile,v 1.6 1996/07/11 15:41:48 grubba Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.5  1996/07/08 21:22:41  grubba
+# Added disassembler.
+#
 # Revision 1.4  1996/07/01 19:16:33  grubba
 # Implemented ASL and ASR.
 # Changed semantics for new_codeinfo(), it doesn't allocate space for the code.
@@ -41,8 +44,8 @@ AS = gas
 CC = gcc
 GASP = gasp
 RM = rm -f
-CFLAGS = -g -O4711 -Wall -pedantic -DDEBUG -IAmigaInclude
-LDLIBS = -lthread
+CFLAGS = -g -O4711 -Wall -pedantic -DDEBUG -IAmigaInclude -I/usr/openwin/include -I/usr/X11/include
+LDLIBS = -lthread -lX -lX11 -lXpm -R/usr/lib:/usr/openwin/lib:/usr/X11/lib
 
 OPCODES = opcodes/opcode_0000.o opcodes/opcode_1000.o \
 	  opcodes/opcode_2000.o opcodes/opcode_3000.o \
@@ -91,6 +94,7 @@ rtest : rtest.o compglue.o peephole.o opcodes.o\
 	templates/glue.o memory.o opcodes.o tables.o
 
 recomp : recomp.o compglue.o peephole.o codeinfo.o hardware.o disassembler.o\
+	gui/gui.o gui/regdump.o gui/info.o gui/disassembler.o\
 	opcodes.o memory.o templates/glue.o opcodes.o tables.o sanity.o
 
 citest : citest.o codeinfo.o

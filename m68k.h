@@ -1,7 +1,10 @@
 /*
- * $Id: m68k.h,v 1.1.1.1 1996/06/30 23:51:50 grubba Exp $
+ * $Id: m68k.h,v 1.2 1996/07/11 15:41:58 grubba Exp $
  *
  * $Log: m68k.h,v $
+ * Revision 1.1.1.1  1996/06/30 23:51:50  grubba
+ * Entry into CVS
+ *
  * Revision 1.4  1996/06/19 11:08:25  grubba
  * *** empty log message ***
  *
@@ -24,10 +27,10 @@
 #define M68K_H
 
 struct m_registers {
-  ULONG d0,d1,d2,d3,d4,d5,d6,d7,a0,a1,a2,a3,a4,a5,a6,a7;
-  ULONG usp,ssp,sr,pc;
-  ULONG vbr;
-  ULONG low, high;
+  volatile ULONG d0,d1,d2,d3,d4,d5,d6,d7,a0,a1,a2,a3,a4,a5,a6,a7;
+  volatile ULONG usp,ssp,sr,pc;
+  volatile ULONG vbr;
+  volatile ULONG low, high;
 };
 
 #define M_A0	8

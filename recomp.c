@@ -1,9 +1,12 @@
 /*
- * $Id: recomp.c,v 1.4 1996/07/08 21:16:00 grubba Exp $
+ * $Id: recomp.c,v 1.5 1996/07/11 15:41:51 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.4  1996/07/08 21:16:00  grubba
+ * Now spawns a separate thread for the CPU emulation.
+ *
  * Revision 1.3  1996/07/05 02:10:30  grubba
  * Switched two instances of \n to \r in compile_and_go().
  *
@@ -217,14 +220,17 @@ void *cpu_thread_main(void *args)
     0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,
     0,0,0,0,
+    0,
     0,0xa00000
   };
   ULONG start_addr = ((ULONG *)(memory + 0x00f80000))[1];
   regs.a7 = regs.ssp = ((ULONG *)(memory + 0x00f80000))[0];
   regs.sr = 0x00002700;
 
+  start_register_dump(&regs);
+
 #ifdef DEBUG
-	    fprintf(stderr, "Starting CPU at 0x%08lx\n", start_addr);
+  fprintf(stderr, "Starting CPU at 0x%08lx\n", start_addr);
 #endif /* DEBUG */
 
   compile_and_go(&regs, start_addr);
@@ -232,6 +238,13 @@ void *cpu_thread_main(void *args)
   /* Probably not reached */
 
   return(NULL);
+}
+
+int start_cpu(void)
+{
+  thread_t cpu_thread;
+
+  return (thr_create(NULL, 0, cpu_thread_main, NULL, THR_DETACHED, &cpu_thread));
 }
 
 int main(int argc, char **argv)
@@ -247,7 +260,8 @@ int main(int argc, char **argv)
 	if ((rommem = (UBYTE *)mmap((caddr_t)(memory + 0x00f80000), 512*1024,
 				    PROT_READ, MAP_SHARED|MAP_FIXED, romfd, 0))) {
 	  if (rommem == memory + 0x00f80000) {
-	    thread_t cpu_thread;
+
+	    start_info_window();
 
 #ifdef DEBUG
 	    printf("Kickstart V%d.%d\n"
@@ -281,10 +295,10 @@ int main(int argc, char **argv)
 
 	    reset_hw();
 
-	    if (thr_create(NULL, 0, cpu_thread_main, NULL,
-			   0, &cpu_thread) == 0) {
-	      thr_join(cpu_thread, NULL, NULL);
-	    }
+	    start_cpu();
+
+	    sleep(500000);
+
 	  } else {
 	    fprintf(stderr, "Bad ROM-map\n");
 	  }
