@@ -1,9 +1,12 @@
 #
-# $Id: Makefile,v 1.2 1996/07/01 00:13:53 grubba Exp $
+# $Id: Makefile,v 1.3 1996/07/01 16:20:44 marcus Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.2  1996/07/01 00:13:53  grubba
+# It is now possible to compile from scratch.
+#
 # Revision 1.1.1.1  1996/06/30 23:51:51  grubba
 # Entry into CVS
 #
@@ -28,7 +31,9 @@
 AS = gas
 CC = gcc
 GASP = gasp
+RM = rm -f
 CFLAGS = -g -O4711 -Wall -pedantic -DDEBUG -IAmigaInclude
+LDLIBS = -lthread
 
 OPCODES = opcodes/opcode_0000.o opcodes/opcode_1000.o \
 	  opcodes/opcode_2000.o opcodes/opcode_3000.o \
@@ -58,10 +63,11 @@ ROM.dump :
 	ln -s /users/grubba/AmigaROM/kick37175.A500 ROM.dump
 
 clean :
-	-rm *.o opcodes/*.o templates/*.o tables/*.o
-	-rm memory.gasp opcodes.h opcode_table.gasp
-	-rm opcodes/*.gasp tables/*.gasp
-	-rm *.gasp.old */*.gasp.old
+	-$(RM) *.o opcodes/*.o templates/*.o tables/*.o
+	-$(RM) memory.gasp opcodes.h opcode_table.gasp
+	-$(RM) opcodes/*.gasp tables/*.gasp
+	-$(RM) *.gasp.old */*.gasp.old
+	-$(RM) blitgen blittest minterms.c
 
 ci :	clean
 	-ci -l *.c *.h templates/*.gasp templates/*.h Makefile templates/Makefile
@@ -93,6 +99,16 @@ opcodes.h : compgen
 memory.gasp : compgen
 	./compgen --memory
 
+blitgen : blitgen.o
+
+minterms.c : blitgen
+	./blitgen > minterms.c
+
+blittest : blittest.o blitter.o
+
+blitter.o : sparcblit.o minterms.o
+	ld -r -o $@ $^
+
 %.o : %.gasp
 	@if cmp $< $<.old 2>&1 >/dev/null; then \
 		if [ -f $@ ]; then \
@@ -115,3 +131,10 @@ citest.o : recomp.h m68k.h codeinfo.h
 
 codeinfo.o : recomp.h m68k.h codeinfo.h
 
+blitgen.o : blitgen.c
+
+minterms.o : minterms.c blitter.h common.h
+
+sparcblit.o : sparcblit.c blitter.h common.h
+
+blittest.o: blittest.c blitter.h common.h
