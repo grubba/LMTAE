@@ -1,9 +1,12 @@
 /*
- * $Id: recomp.c,v 1.22 1998/02/10 21:40:42 grubba Exp $
+ * $Id: recomp.c,v 1.23 1998/02/11 00:06:07 marcus Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.22  1998/02/10 21:40:42  grubba
+ * Added some support for Rekick-type ROMs.
+ *
  * Revision 1.21  1998/02/10 17:20:51  marcus
  * Synchronized raster counter.
  *
@@ -127,6 +130,7 @@
 #include "hardware.h"
 #include "interrupt.h"
 #include "compiler.h"
+#include "timebase.h"
 
 /*
  * Define this to get runtime sanity checks of the emulated Amiga
@@ -462,19 +466,6 @@ volatile void Usage(char *arg0, char *romdump)
   exit(1);
 }
 
-thread_t vblank_thread;
-
-void *vblank_entry(void *arg)
-{
-  for(;;) {
-    usleep(20000);
-    mutex_lock(&irq_ctrl_lock);
-    ((U16 *)memory)[0xdff01e>>1] |= 0x20;
-    cond_signal(&irq_ctrl_signal);
-    mutex_unlock(&irq_ctrl_lock);
-  }
-}
-
 int main(int argc, char **argv)
 {
   int i;
@@ -596,9 +587,6 @@ int main(int argc, char **argv)
 	    }
 
 	    start_cpu();
-
-	    thr_create(NULL, THR_MIN_STACK, vblank_entry, NULL,
-		       THR_DETACHED | THR_DAEMON, &vblank_thread);
 
 	    sleep(500000);
 
