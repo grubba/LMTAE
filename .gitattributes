@@ -43,5 +43,6 @@
 /sparc.h foreign_ident
 /templates/glue.gasp foreign_ident
 /templates/glue.h foreign_ident
+/timebase.c foreign_ident
 /types.h foreign_ident
 /zorro.c foreign_ident

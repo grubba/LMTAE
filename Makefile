@@ -1,9 +1,12 @@
 #
-# $Id: Makefile,v 1.16 1997/08/28 23:56:09 grubba Exp $
+# $Id: Makefile,v 1.17 1998/02/10 17:21:05 marcus Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.16  1997/08/28 23:56:09  grubba
+# Now uses /home/grubba instead of /users/grubba/.
+#
 # Revision 1.15  1996/08/11 17:36:05  grubba
 # Now with timing statistics.
 # Added some more dependancies to the Makefile.
@@ -140,7 +143,7 @@ rtest : rtest.o compglue.o peephole.o opcodes.o\
 	templates/glue.o memory.o opcodes.o tables.o
 
 recomp : recomp.o compglue.o peephole.o codeinfo.o\
-	interrupt.o hardware.o custom.o cia.o zorro.o\
+	interrupt.o hardware.o custom.o cia.o timebase.o zorro.o\
 	disassembler.o sanity.o setpatch.o\
 	gui/gui.o gui/regdump.o gui/info.o gui/disassembler.o\
 	opcodes.o memory.o templates/glue.o opcodes.o tables.o

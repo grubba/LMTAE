@@ -1,9 +1,12 @@
 /*
- * $Id: custom.c,v 1.6 1998/02/10 15:45:28 marcus Exp $
+ * $Id: custom.c,v 1.7 1998/02/10 17:20:50 marcus Exp $
  *
  * Custom chip emulation
  *
  * $Log: custom.c,v $
+ * Revision 1.6  1998/02/10 15:45:28  marcus
+ * Fixed read signedness.
+ *
  * Revision 1.5  1998/02/10 02:13:09  marcus
  * Non-word accesses to custom registers now possible.
  *
@@ -63,11 +66,27 @@ static S16 custom_write_only(U32 reg)
   return(0);
 }
 
+static void update_vhposr()
+{
+  extern void pixel_timebase(int pal, int lace,
+			     U32 *lof, U32 *vpos, U32 *hpos, U64 *nextvbr);
+  U32 lof, vpos, hpos;
+  pixel_timebase(memory[0xdff1dd]&0x20, memory[0xdff001]&0x02,
+		 &lof, &vpos, &hpos, NULL);
+  ((U32 *)memory)[0xdff004>>2] = (lof<<31)|((vpos&0x1ff)<<8)|((hpos&0x1fe)>>1);
+}
+
+static S16 custom_read_vposr(U32 reg)
+{
+  update_vhposr();
+  fprintf(stdout, "Reading VHPOSR 0x%08x\n", ((U32 *)memory)[0xdff004>>2]);
+  return (((S16 *)memory)[0xdff004>>1]);
+}
+
 static S16 custom_read_vhposr(U32 reg)
 {
+  update_vhposr();
   fprintf(stdout, "Reading VHPOSR 0x%08x\n", ((U32 *)memory)[0xdff004>>2]);
-  ((U32 *)memory)[0xdff004>>2] += 0x00000101;
-  ((U32 *)memory)[0xdff004>>2] &= 0x0001ffff;
   return (((S16 *)memory)[0xdff006>>1]);
 }
 
@@ -204,7 +223,12 @@ U32 read_custom_byte(U32 addr, U32 base)
 
 U32 read_custom_long(U32 addr, U32 base)
 {
-  return (read_custom(addr, base)<<16)|(read_custom(addr+2, base)&0xffff);
+  if(addr == 4) {
+    update_vhposr();
+    fprintf(stdout, "Reading VHPOSR 0x%08x\n", ((U32 *)memory)[0xdff004>>2]);
+    return ((S32 *)memory)[0xdff004>>1];
+  } else
+    return (read_custom(addr, base)<<16)|(read_custom(addr+2, base)&0xffff);
 }
 
 void write_custom(U32 addr, U32 val, U32 base)

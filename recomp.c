@@ -1,9 +1,12 @@
 /*
- * $Id: recomp.c,v 1.20 1998/02/10 02:03:38 marcus Exp $
+ * $Id: recomp.c,v 1.21 1998/02/10 17:20:51 marcus Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.20  1998/02/10 02:03:38  marcus
+ * VERTB interrupts added.
+ *
  * Revision 1.19  1998/02/10 01:02:27  marcus
  * Added a switch to turn off the GUI.
  *
@@ -566,7 +569,7 @@ int main(int argc, char **argv)
 			   "boards/hardfile.so");
 
 	    reset_hw();
-
+	    init_timebase();
 	    start_cpu();
 
 	    thr_create(NULL, THR_MIN_STACK, vblank_entry, NULL,

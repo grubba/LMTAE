@@ -1,9 +1,12 @@
 /*
- * $Id: custom_tab.c,v 1.4 1998/02/10 01:32:12 marcus Exp $
+ * $Id: custom_tab.c,v 1.5 1998/02/10 17:20:50 marcus Exp $
  *
  * Tables for the customchip address decoding.
  *
  * $Log: custom_tab.c,v $
+ * Revision 1.4  1998/02/10 01:32:12  marcus
+ * DMACON added.
+ *
  * Revision 1.3  1998/02/10 01:02:00  marcus
  * DENISEID register implemented.
  *
@@ -27,7 +30,7 @@
 static S16 (*custom_read_tab[])(U32 reg) = {
   NULL,			/* BLTDDAT */
   NULL,			/* DMACONR */
-  NULL,			/* VPOSR */
+  custom_read_vposr,	/* VPOSR */
   custom_read_vhposr,	/* VHPOSR */
   NULL,			/* DSKDATR */
   NULL,			/* JOY0DAT */
