@@ -1,9 +1,14 @@
 /*
- * $Id: recomp.c,v 1.10 1996/07/14 21:44:23 grubba Exp $
+ * $Id: recomp.c,v 1.11 1996/07/15 20:36:20 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.10  1996/07/14 21:44:23  grubba
+ * Added support for adding hardware dynamically.
+ * Added CIAA time of day clock (50Hz).
+ * Moved some debug output from stderr to stdout.
+ *
  * Revision 1.9  1996/07/13 19:32:09  grubba
  * Now defaults to very little debuginfo.
  * Added (un|set)patch().
@@ -183,6 +188,7 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
   struct seg_info *segment = NULL;
   struct code_info *ci = NULL;
   struct code_info *old_ci = NULL;
+  ULONG oldsr = regs->sr;
 
   while (1) {
 
@@ -205,6 +211,16 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
       return;
     }
 
+#ifdef DEBUG
+    if ((regs->sr ^ oldsr) & 0x2000) {
+      if (regs->sr & 0x2000) {
+	printf("Entering Supervisor mode. SR:0x%04lx\n", regs->sr);
+      } else {
+	printf("Leaving Supervisor mode. SR:0x%04lx\n", regs->sr);
+      }
+      oldsr = regs->sr;
+    }
+#endif /* DEBUG */
     if ((!segment) || (segment->maddr > maddr) || (segment->mend <= maddr)) {
       segment = find_seg(code_tree, maddr);
 #ifdef DEBUG
