@@ -1,9 +1,12 @@
 /*
- * $Id: recomp.c,v 1.6 1996/07/11 23:02:06 marcus Exp $
+ * $Id: recomp.c,v 1.7 1996/07/12 13:11:38 marcus Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.6  1996/07/11 23:02:06  marcus
+ * Real ZorroII emulation
+ *
  * Revision 1.5  1996/07/11 15:41:51  grubba
  * Now has a GUI!
  * Some bug-fixes.
@@ -299,6 +302,8 @@ int main(int argc, char **argv)
 #endif /* DEBUG */
 
 	    zorro_addram(2);
+	    zorro_addboard("HardFile", "boards/hardfile.rom",
+			   "boards/hardfile.so");
 
 	    reset_hw();
 
