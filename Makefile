@@ -1,9 +1,12 @@
 #
-# $Id: Makefile,v 1.17 1998/02/10 17:21:05 marcus Exp $
+# $Id: Makefile,v 1.18 1998/02/11 00:05:18 marcus Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.17  1998/02/10 17:21:05  marcus
+# Synchronized raster counter.
+#
 # Revision 1.16  1997/08/28 23:56:09  grubba
 # Now uses /home/grubba instead of /users/grubba/.
 #
@@ -85,11 +88,11 @@ AS = gas
 CC = gcc
 GASP = gasp
 RM = rm -f
-CFLAGS = -g -O4711 -Wall -pedantic -DDEBUG \
+CFLAGS = -g -O4711 -mv8 -Wall -pedantic -DDEBUG \
 	-IAmigaInclude -I/usr/openwin/include -I/usr/X11/include
 LDFLAGS = -L/usr/lib -L/usr/openwin/lib -L/usr/X11/lib -L/usr/local/lib\
 	-R/usr/lib:/usr/openwin/lib:/usr/X11/lib:/usr/local/lib
-LDLIBS = -lthread -ldl -lX -lX11 -lXpm
+LDLIBS = -lthread -lposix4 -ldl -lX -lX11 -lXpm
 
 OPCODES = opcodes/opcode_0000.o opcodes/opcode_1000.o \
 	  opcodes/opcode_2000.o opcodes/opcode_3000.o \
