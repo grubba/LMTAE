@@ -1,9 +1,15 @@
 #
-# $Id: Makefile,v 1.4 1996/07/01 19:16:33 grubba Exp $
+# $Id: Makefile,v 1.5 1996/07/08 21:22:41 grubba Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.4  1996/07/01 19:16:33  grubba
+# Implemented ASL and ASR.
+# Changed semantics for new_codeinfo(), it doesn't allocate space for the code.
+# Added PeepHoleOptimize(). At the moment it just mallocs and copies the code.
+# Removed some warnings.
+#
 # Revision 1.3  1996/07/01 16:20:44  marcus
 # Blitter emulation imported into CVS repository.
 #
@@ -84,7 +90,7 @@ ci :	clean
 rtest : rtest.o compglue.o peephole.o opcodes.o\
 	templates/glue.o memory.o opcodes.o tables.o
 
-recomp : recomp.o compglue.o peephole.o codeinfo.o hardware.o\
+recomp : recomp.o compglue.o peephole.o codeinfo.o hardware.o disassembler.o\
 	opcodes.o memory.o templates/glue.o opcodes.o tables.o sanity.o
 
 citest : citest.o codeinfo.o
