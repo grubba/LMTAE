@@ -1,9 +1,13 @@
 /*
- * $Id: compglue.c,v 1.8 1996/07/17 16:01:22 grubba Exp $
+ * $Id: compglue.c,v 1.9 1996/07/21 17:39:17 grubba Exp $
  *
  * Help functions for the M68000 to Sparc compiler.
  *
  * $Log: compglue.c,v $
+ * Revision 1.8  1996/07/17 16:01:22  grubba
+ * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
+ * Hopefully all places got patched.
+ *
  * Revision 1.7  1996/07/17 00:19:55  grubba
  * Minor changes.
  *
@@ -292,8 +296,6 @@ U32 compile(struct code_info *ci)
   U32 regs = 0;
   U16 *mem = (U16 *)memory;
   U16 opcode;
-
-  __asm__("	flush	%g0\n");	/* Flush instruction cache */
 
   copy_template(&code, s_pre_amble);
 

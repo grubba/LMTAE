@@ -1,9 +1,13 @@
 /*
- * $Id: peephole.c,v 1.2 1996/07/17 16:01:39 grubba Exp $
+ * $Id: peephole.c,v 1.3 1996/07/21 17:39:20 grubba Exp $
  *
  * Peephole optimizer for the M68000 to Sparc recompiler.
  *
  * $Log: peephole.c,v $
+ * Revision 1.2  1996/07/17 16:01:39  grubba
+ * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
+ * Hopefully all places got patched.
+ *
  * Revision 1.1  1996/07/01 19:16:53  grubba
  * Implemented ASL and ASR.
  * Changed semantics for new_codeinfo(), it doesn't allocate space for the code.
@@ -100,11 +104,37 @@ static void PeepHoleOptimize2(struct code_info *code, U32 *start, U32 *end)
 void PeepHoleOptimize(struct code_info *ci, U32 *start, U32 *end)
 {
   U32 size = ((U32)end) - ((U32)start);
+  U32 *code;
 
-  if (!(ci->code = (U32 (*)(struct m_registers *, void *))malloc(size))) {
+  if (!(ci->code = (U32 (*)(struct m_registers *, void *))
+	(code = (U32 *)malloc(size)))) {
     fprintf(stderr, "Out of memory in PeepHoleOptimize()\n");
     abort();
   }
-  memcpy((void *)ci->code, start, size);
-  ci->codeend = (U32 *)(((U32)ci->code) + size);
+  size >>= 2;
+  if (((U32)code) & 0x4) {
+    *code = *start;
+    __asm__ volatile ("flush	%0" : /* No output */ : "r" (code));
+    code++;
+    start++;
+    size--;
+  }
+  while (size >= 2) {
+    *code = *start;
+    code++;
+    start++;
+    *code = *start;
+    __asm__ volatile ("flush	%0" : /* No output */ : "r" (code));
+    code++;
+    start++;
+    size -= 2;
+  }
+  if (size) {
+    *code = *start;
+    __asm__ volatile ("flush	%0" : /* No output */ : "r" (code));
+    code++;
+    start++;
+  }
+  __asm__("stbar");
+  ci->codeend = code;
 }
