@@ -1,9 +1,12 @@
 /*
- * $Id: compgen.c,v 1.20 1996/08/04 14:22:41 grubba Exp $
+ * $Id: compgen.c,v 1.21 1996/08/10 15:47:56 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.20  1996/08/04 14:22:41  grubba
+ * The compiler table now holds information needed for SR optimization.
+ *
  * Revision 1.19  1996/07/17 20:11:12  grubba
  * Added EOR.
  * Fixed bug with AND -- bad mask.
@@ -346,9 +349,8 @@ void tab_andi(FILE *fp, U16 opcode, const char *mnemonic)
 void as_andi(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	and	%%acc1, %%acc0, %%acc0\n"
+	  "	andcc	%%acc1, %%acc0, %%acc0\n"
 	  "	and	-16, %%sr, %%sr\n"
-	  "	cmp	%%acc0, %%g0\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -375,7 +377,8 @@ void as_andi_sr(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	ld	[ %%regs + _A7 ], %%o0\n"
 	  "	st	%%o0, [ %%regs + _SSP ]\n"
 	  "	ld	[ %%regs + _USP ], %%o0\n"
-	  "	st	%%o0, [ %%regs + _A7 ]\n");
+	  "	st	%%o0, [ %%regs + _A7 ]\n"
+	  "0:\n");
 }
 
 int head_bchg(U16 opcode)
@@ -474,11 +477,11 @@ void as_bclr(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	mov	0x01, %%o0\n"
 	  "	sll	%%o0, %%acc1, %%o0\n"
 	  "	btst	%%acc0, %%o0\n"
+	  "	andn	%%acc0, %%o0, %%acc0\n"
 	  "	be,a	0f\n"
 	  "	or	4, %%sr, %%sr\n"
 	  "	and	-5, %%sr, %%sr\n"
-	  "0:\n"
-	  "	andn	%%acc0, %%o0, %%acc0\n");
+	  "0:\n");
 }
 
 int head_bset(U16 opcode)
@@ -524,11 +527,11 @@ void as_bset(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	mov	0x01, %%o0\n"
 	  "	sll	%%o0, %%acc1, %%o0\n"
 	  "	btst	%%acc0, %%o0\n"
+	  "	or	%%acc0, %%o0, %%acc0\n"
 	  "	be,a	0f\n"
 	  "	or	4, %%sr, %%sr\n"
 	  "	and	-5, %%sr, %%sr\n"
-	  "0:\n"
-	  "	or	%%acc0, %%o0, %%acc0\n");
+	  "0:\n");
 }
 
 int head_btst(U16 opcode)
@@ -594,8 +597,8 @@ void tab_cmp(FILE *fp, U16 opcode, const char *mnemonic)
 void as_cmp(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	and	-16, %%sr, %%sr\n"
 	  "	subcc	%%acc0, %%acc1, %%g0\n"
+	  "	and	-16, %%sr, %%sr\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -635,8 +638,8 @@ void tab_cmpa(FILE *fp, U16 opcode, const char *mnemonic)
 void as_cmpa(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	and	-16, %%sr, %%sr\n"
 	  "	subcc	%%acc0, %%acc1, %%g0\n"
+	  "	and	-16, %%sr, %%sr\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -666,8 +669,8 @@ void tab_cmpi(FILE *fp, U16 opcode, const char *mnemonic)
 void as_cmpi(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	and	-16, %%sr, %%sr\n"
 	  "	subcc	%%acc0, %%acc1, %%g0\n"
+	  "	and	-16, %%sr, %%sr\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -697,8 +700,8 @@ void tab_cmpm(FILE *fp, U16 opcode, const char *mnemonic)
 void as_cmpm(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	and	-16, %%sr, %%sr\n"
 	  "	subcc	%%acc0, %%acc1, %%g0\n"
+	  "	and	-16, %%sr, %%sr\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -832,9 +835,8 @@ void as_move(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* Fix SR */
   fprintf(fp,
-	  "	mov	%%acc1, %%acc0\n"
+	  "	orcc	%%acc1, %%g0, %%acc0\n"
 	  "	and	-16, %%sr, %%sr\n"
-	  "	cmp	%%acc0, %%g0\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -932,9 +934,8 @@ void tab_ori(FILE *fp, U16 opcode, const char *mnemonic)
 void as_ori(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	or	%%acc1, %%acc0, %%acc0\n"
+	  "	orcc	%%acc1, %%acc0, %%acc0\n"
 	  "	and	-16, %%sr, %%sr\n"
-	  "	cmp	%%acc0, %%g0\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -955,7 +956,9 @@ void tab_ori_ccr(FILE *fp, U16 opcode, const char *mnemonic)
 
 void as_ori_ccr(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "	or	%%acc1, %%sr, %%sr\n");
+  fprintf(fp,
+	  "	and	0x1f, %%acc1, %%acc1\n"	/* Avoid sign extension */
+	  "	or	%%acc1, %%sr, %%sr\n");
 }
 
 int head_ori_sr(U16 opcode)
@@ -1011,8 +1014,8 @@ void tab_neg(FILE *fp, U16 opcode, const char *mnemonic)
 void as_neg(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	and	-32, %%sr, %%sr\n"
 	  "	subcc	%%g0, %%acc0, %%acc0\n"
+	  "	and	-32, %%sr, %%sr\n"
 	  "	bcs,a	0f\n"
 	  "	or	0x11, %%sr, %%sr\n"
 	  "	or      0x04, %%sr, %%sr\n"
@@ -1039,9 +1042,8 @@ void tab_not(FILE *fp, U16 opcode, const char *mnemonic)
 void as_not(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	xor	-1, %%acc0, %%acc0\n"
+	  "	xorcc	-1, %%acc0, %%acc0\n"
 	  "	and	-16, %%sr, %%sr\n"
-	  "	cmp	%%acc0, %%g0\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -1369,9 +1371,8 @@ void as_swap(FILE *fp, U16 opcode, const char *mnemonic)
   fprintf(fp,
 	  "	srl	%%acc0, 0x10, %%o0\n"
 	  "	sll	%%acc0, 0x10, %%acc0\n"
+	  "	orcc	%%acc0, %%o0, %%acc0\n"
 	  "	and	-16, %%sr, %%sr\n"
-	  "	or	%%acc0, %%o0, %%acc0\n"
-	  "	cmp	%%acc0, %%g0\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -1405,9 +1406,8 @@ void as_ext(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* We already sign-extend on load */
   fprintf(fp,
+	  "	orcc	%%acc1, %%g0, %%acc0\n"
 	  "	and	-16, %%sr, %%sr\n"
-	  "	mov	%%acc1, %%acc0\n"
-	  "	cmp	%%acc1, %%g0\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -1448,8 +1448,8 @@ void tab_tst(FILE *fp, U16 opcode, const char *mnemonic)
 void as_tst(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	and	-16, %%sr, %%sr\n"
 	  "	cmp	%%acc0, %%g0\n"
+	  "	and	-16, %%sr, %%sr\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -1970,9 +1970,10 @@ void as_divu(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	! FIXME: Division by 0 Exception\n"
 	  "	! Insert code here\n"
 	  "0:\n"
+	  "	andn	%%acc1, %%o0, %%acc1\n"
 	  "	udiv	%%acc0, %%acc1, %%o2\n"
-	  "	btst	%%o2, %%o0\n"
 	  "	smul	%%o2, %%acc1, %%o1\n"
+	  "	btst	%%o2, %%o0\n"
 	  "	andn	%%o2, %%o0, %%o2\n"
 	  "	sub	%%acc0, %%o1, %%o1\n"
 	  "	sll	%%o1, 0x10, %%o1\n"
@@ -2010,9 +2011,8 @@ void tab_or(FILE *fp, U16 opcode, const char *mnemonic)
 void as_or(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	or	%%acc0, %%acc1, %%acc0\n"
+	  "	orcc	%%acc0, %%acc1, %%acc0\n"
 	  "	and	-16, %%sr, %%sr\n"
-	  "	cmp	%%acc0, %%g0\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -2087,8 +2087,7 @@ void as_mulu(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	and	-16, %%sr, %%sr\n"
 	  "	andn	%%acc0, %%o0, %%acc0\n"
 	  "	andn	%%acc1, %%o0, %%acc1\n"
-	  "	smul	%%acc0, %%acc1, %%acc0\n"
-	  "	cmp	%%acc0, %%g0\n"
+	  "	smulcc	%%acc0, %%acc1, %%acc0\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -2115,8 +2114,7 @@ void as_muls(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	sll	%%acc0, 0x10, %%acc0\n"
 	  "	and	-16, %%sr, %%sr\n"
 	  "	srl	%%acc0, 0x10, %%acc0\n"
-	  "	smul	%%acc0, %%acc1, %%acc0\n"
-	  "	cmp	%%acc0, %%g0\n"
+	  "	smulcc	%%acc0, %%acc1, %%acc0\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -2139,9 +2137,8 @@ void tab_eor(FILE *fp, U16 opcode, const char *mnemonic)
 void as_eor(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	xor	%%acc0, %%acc1, %%acc0\n"
+	  "	xorcc	%%acc0, %%acc1, %%acc0\n"
 	  "	and	-16, %%sr, %%sr\n"
-	  "	cmp	%%acc0, %%g0\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -2209,9 +2206,8 @@ void tab_and(FILE *fp, U16 opcode, const char *mnemonic)
 void as_and(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	and	%%acc0, %%acc1, %%acc0\n"
+	  "	andcc	%%acc0, %%acc1, %%acc0\n"
 	  "	and	-16, %%sr, %%sr\n"
-	  "	cmp	%%acc0, %%g0\n"
 	  "	blt,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
@@ -2453,15 +2449,15 @@ void as_lsr_reg(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	sll	%%acc0, 1, %%o1\n"
 	  "	srl	%%o0, %%acc1, %%acc0\n"
 	  "	srl	%%o1, %%acc1, %%o1\n"
+	  "	btst	1, %%o1\n"
+	  "	bne,a	0f\n"
+	  "	or	0x11, %%sr, %%sr\n"
+	  "0:\n"
 	  "	cmp	%%acc0, %%g0\n"
 	  "	ble,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
 	  "	be,a	0f\n"
 	  "	or	4, %%sr, %%sr\n"
-	  "0:\n"
-	  "	btst	1, %%o1\n"
-	  "	bne,a	0f\n"
-	  "	or	0x11, %%sr, %%sr\n"
 	  "0:\n");
 }
 
@@ -3127,13 +3123,19 @@ struct opcode_info {
 /*
  * sr_magic encoding:
  *
- * 3322222222221111111111
- * 10987654321098765432109876543210
+ * 3322 2222 2222 1111 1111 11
+ * 1098 7654 3210 9876 5432 1098 7654 3210
  *
- *                    0nnnn		SR bit (n-1) needed.
- *                    1nnnn		SR bits 0-(n-1) needed.
- *                            0nnnn	SR bit (n-1) changed.
- *                            1nnnn	SR bits 0-(n-1) changed.
+ * 0000 0000                              	No pre SR magic.
+ *           0000 0000                    	No post SR magic.
+ *           0000 0001                    	Set XNZVC according to sparc CC.
+ *           0000 0010                    	Set  NZVC according to sparc CC.
+ *           0000 0011                    	Set  NZ00 according to sparc CC.
+ *           0000 0100                    	Set   Z   according to sparc CC.
+ *                        0 nnnn  		SR bit (n-1) needed.
+ *                        1 nnnn 	 	SR bits 0-(n-1) needed.
+ *                                  0 nnnn	SR bit (n-1) changed.
+ *                                  1 nnnn	SR bits 0-(n-1) changed.
  *
  */
 
@@ -3143,34 +3145,34 @@ struct opcode_info {
 
 struct opcode_info opcodes[] = {
   { 0xf138, 0x0108, 0x00000000, "MOVEP", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf1c0, 0x0100, 0x00000003, "BTST", head_btst, tab_btst, as_btst, comp_default },
-  { 0xf1c0, 0x0140, 0x00000003, "BCHG", head_bchg, tab_bchg, as_bchg, comp_default },
-  { 0xf1c0, 0x0180, 0x00000003, "BCLR", head_bclr, tab_bclr, as_bclr, comp_default },
-  { 0xf1c0, 0x01c0, 0x00000003, "BSET", head_bset, tab_bset, as_bset, comp_default },
-  { 0xffc0, 0x0800, 0x00000003, "BTST", head_btst, tab_btst, as_btst, comp_default },
-  { 0xffc0, 0x0840, 0x00000003, "BCHG", head_bchg, tab_bchg, as_bchg, comp_default },
-  { 0xffc0, 0x0880, 0x00000003, "BCLR", head_bclr, tab_bclr, as_bclr, comp_default },
-  { 0xffc0, 0x08c0, 0x00000003, "BSET", head_bset, tab_bset, as_bset, comp_default },
+  { 0xf1c0, 0x0100, 0x00040003, "BTST", head_btst, tab_btst, as_btst, comp_default },
+  { 0xf1c0, 0x0140, 0x00040003, "BCHG", head_bchg, tab_bchg, as_bchg, comp_default },
+  { 0xf1c0, 0x0180, 0x00040003, "BCLR", head_bclr, tab_bclr, as_bclr, comp_default },
+  { 0xf1c0, 0x01c0, 0x00040003, "BSET", head_bset, tab_bset, as_bset, comp_default },
+  { 0xffc0, 0x0800, 0x00040003, "BTST", head_btst, tab_btst, as_btst, comp_default },
+  { 0xffc0, 0x0840, 0x00040003, "BCHG", head_bchg, tab_bchg, as_bchg, comp_default },
+  { 0xffc0, 0x0880, 0x00040003, "BCLR", head_bclr, tab_bclr, as_bclr, comp_default },
+  { 0xffc0, 0x08c0, 0x00040003, "BSET", head_bset, tab_bset, as_bset, comp_default },
   { 0xffff, 0x003c, 0x00001515, "ORI_CCR", head_ori_ccr, tab_ori_ccr, as_ori_ccr, comp_default },
   { 0xffff, 0x007c, 0x00001f1f, "ORI_SR", head_ori_sr, tab_ori_sr, as_ori_sr, comp_default },
   { 0xff00, 0x0000, 0x00000014, "ORI", head_ori, tab_ori, as_ori, comp_default },
   { 0xffff, 0x023c, 0x00001515, "ANDI_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xffff, 0x027c, 0x00001f1f, "ANDI_SR", head_default, tab_andi_sr, as_andi_sr, comp_default },
-  { 0xff00, 0x0200, 0x00000014, "ANDI", head_andi, tab_andi, as_andi, comp_default },
-  { 0xff00, 0x0400, 0x00000015, "SUBI", head_subi, tab_subi, as_subi, comp_default },
-  { 0xff00, 0x0600, 0x00000015, "ADDI", head_addi, tab_addi, as_addi, comp_default },
+  { 0xff00, 0x0200, 0x00030014, "ANDI", head_andi, tab_andi, as_andi, comp_default },
+  { 0xff00, 0x0400, 0x00010015, "SUBI", head_subi, tab_subi, as_subi, comp_default },
+  { 0xff00, 0x0600, 0x00010015, "ADDI", head_addi, tab_addi, as_addi, comp_default },
   { 0xffff, 0x0a3c, 0x00001515, "EORI_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xffff, 0x0a7c, 0x00001f1f, "EORI_SR", head_default, tab_eori_sr, as_eori_sr, comp_default },
   { 0xff00, 0x0a00, 0x00000014, "EORI", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xff00, 0x0c00, 0x00000014, "CMPI", head_cmpi, tab_cmpi, as_cmpi, comp_default },
+  { 0xff00, 0x0c00, 0x00020014, "CMPI", head_cmpi, tab_cmpi, as_cmpi, comp_default },
   { 0xff00, 0x0e00, 0x00000000, "MOVES", head_not_implemented, tab_illegal, as_illegal, comp_default },
   
   { 0xf1c0, 0x1040, 0x00000000, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
-  { 0xf000, 0x1000, 0x00000014, "MOVE", head_move, tab_move, as_move, comp_default },
+  { 0xf000, 0x1000, 0x00030014, "MOVE", head_move, tab_move, as_move, comp_default },
   { 0xf1c0, 0x2040, 0x00000000, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
-  { 0xf000, 0x2000, 0x00000014, "MOVE", head_move, tab_move, as_move, comp_default },
+  { 0xf000, 0x2000, 0x00030014, "MOVE", head_move, tab_move, as_move, comp_default },
   { 0xf1c0, 0x3040, 0x00000000, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
-  { 0xf000, 0x3000, 0x00000014, "MOVE", head_move, tab_move, as_move, comp_default },
+  { 0xf000, 0x3000, 0x00030014, "MOVE", head_move, tab_move, as_move, comp_default },
 
   { 0xf1c0, 0x4180, 0x00000014, "CHK", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xf1c0, 0x41c0, 0x00000000, "LEA", head_lea, tab_lea, as_lea, comp_default },
@@ -3182,13 +3184,13 @@ struct opcode_info opcodes[] = {
   { 0xffc0, 0x44c0, 0x00000015, "MOVE_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xff00, 0x4400, 0x00000015, "NEG", head_neg, tab_neg, as_neg, comp_default },
   { 0xffc0, 0x46c0, 0x00001f1f, "MOVE_SR", head_move_sr, tab_move_sr, as_move_sr, comp_default },
-  { 0xff00, 0x4600, 0x00000014, "NOT", head_not, tab_not, as_not, comp_default },
+  { 0xff00, 0x4600, 0x00030014, "NOT", head_not, tab_not, as_not, comp_default },
   
   { 0xffc0, 0x4800, 0x00000015, "NBCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xfff8, 0x4840, 0x00000014, "SWAP", head_swap, tab_swap, as_swap, comp_default },
+  { 0xfff8, 0x4840, 0x00030014, "SWAP", head_swap, tab_swap, as_swap, comp_default },
   { 0xfff8, 0x4848, 0x00001f00, "BKPT", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xffc0, 0x4840, 0x00000000, "PEA", head_pea, tab_pea, as_pea, comp_default },
-  { 0xffb8, 0x4880, 0x00000014, "EXT", head_ext, tab_ext, as_ext, comp_default },
+  { 0xffb8, 0x4880, 0x00030014, "EXT", head_ext, tab_ext, as_ext, comp_default },
   { 0xfb80, 0x4880, 0x00000000, "MOVEM", head_movem, tab_movem, as_movem, comp_default },
 
   { 0xfff0, 0x4e60, 0x00001f00, "MOVE_USP", head_default, tab_move_usp, as_move_usp, comp_default },
@@ -3204,7 +3206,7 @@ struct opcode_info opcodes[] = {
 
   { 0xffff, 0x4afc, 0x00001f00, "ILLEGAL", head_default, tab_illegal, as_illegal, comp_default },
   { 0xffc0, 0x4ac0, 0x00000014, "TAS", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xff00, 0x4a00, 0x00000014, "TST", head_tst, tab_tst, as_tst, comp_default },
+  { 0xff00, 0x4a00, 0x00030014, "TST", head_tst, tab_tst, as_tst, comp_default },
   { 0xfff0, 0x4e40, 0x00001f00, "TRAP", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xfff8, 0x4e50, 0x00000000, "LINK", head_link, tab_link, as_link, comp_default },
   { 0xfff8, 0x4e58, 0x00000000, "UNLK", head_unlk, tab_unlk, as_unlk, comp_default },
@@ -3214,8 +3216,8 @@ struct opcode_info opcodes[] = {
 
   { 0xf0f8, 0x50c8, 0x00001f00, "DB", head_default, tab_dbcc, as_dbcc, comp_default },
   { 0xf0c0, 0x50c0, 0x00001400, "S", head_scc, tab_scc, as_scc, comp_default },
-  { 0xf100, 0x5000, 0x00000015, "ADDQ", head_addq, tab_addq, as_addq, comp_default },
-  { 0xf100, 0x5100, 0x00000015, "SUBQ", head_subq, tab_subq, as_subq, comp_default },
+  { 0xf100, 0x5000, 0x00010015, "ADDQ", head_addq, tab_addq, as_addq, comp_default },
+  { 0xf100, 0x5100, 0x00010015, "SUBQ", head_subq, tab_subq, as_subq, comp_default },
   
   { 0xff00, 0x6000, 0x00001f00, "BRA", head_default, tab_bra, as_bra, comp_default },
   { 0xff00, 0x6100, 0x00001f00, "BSR", head_default, tab_bsr, as_bsr, comp_default },
@@ -3226,29 +3228,29 @@ struct opcode_info opcodes[] = {
   { 0xf1c0, 0x80c0, 0x00000014, "DIVU", head_divu, tab_divu, as_divu, comp_default },
   { 0xf1f0, 0x8100, 0x00000015, "SBCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xf1c0, 0x81c0, 0x00000014, "DIVS", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf000, 0x8000, 0x00000014, "OR", head_or, tab_or, as_or, comp_default },
+  { 0xf000, 0x8000, 0x00030014, "OR", head_or, tab_or, as_or, comp_default },
 
   { 0xf0c0, 0x90c0, 0x00000000, "SUBA", head_suba, tab_suba, as_suba, comp_default },
   { 0xf130, 0x9100, 0x00000515, "SUBX", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf000, 0x9000, 0x00000015, "SUB", head_sub, tab_sub, as_sub, comp_default },
+  { 0xf000, 0x9000, 0x00010015, "SUB", head_sub, tab_sub, as_sub, comp_default },
 
   { 0xf000, 0xa000, 0x00001f00, "LINE A", head_not_implemented, tab_illegal, as_illegal, comp_default },
 
-  { 0xf0c0, 0xb0c0, 0x00000014, "CMPA", head_cmpa, tab_cmpa, as_cmpa, comp_default },
-  { 0xf100, 0xb000, 0x00000014, "CMP", head_cmp, tab_cmp, as_cmp, comp_default },
-  { 0xf138, 0xb108, 0x00000014, "CMPM", head_cmpm, tab_cmpm, as_cmpm, comp_default },
-  { 0xf100, 0xb100, 0x00000014, "EOR", head_eor, tab_eor, as_eor, comp_default },
+  { 0xf0c0, 0xb0c0, 0x00020014, "CMPA", head_cmpa, tab_cmpa, as_cmpa, comp_default },
+  { 0xf100, 0xb000, 0x00020014, "CMP", head_cmp, tab_cmp, as_cmp, comp_default },
+  { 0xf138, 0xb108, 0x00020014, "CMPM", head_cmpm, tab_cmpm, as_cmpm, comp_default },
+  { 0xf100, 0xb100, 0x00030014, "EOR", head_eor, tab_eor, as_eor, comp_default },
 
-  { 0xf1c0, 0xc0c0, 0x00000014, "MULU", head_mulu, tab_mulu, as_mulu, comp_default },
+  { 0xf1c0, 0xc0c0, 0x00030014, "MULU", head_mulu, tab_mulu, as_mulu, comp_default },
   { 0xf1f0, 0xc100, 0x00000015, "ABCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xf1f0, 0xc140, 0x00000000, "EXG", head_exg, tab_exg, as_exg, comp_default },
   { 0xf1f8, 0xc188, 0x00000000, "EXG", head_exg, tab_exg, as_exg, comp_default },
-  { 0xf1c0, 0xc1c0, 0x00000014, "MULS", head_muls, tab_muls, as_muls, comp_default },
-  { 0xf000, 0xc000, 0x00000014, "AND", head_and, tab_and, as_and, comp_default },
+  { 0xf1c0, 0xc1c0, 0x00030014, "MULS", head_muls, tab_muls, as_muls, comp_default },
+  { 0xf000, 0xc000, 0x00030014, "AND", head_and, tab_and, as_and, comp_default },
 
   { 0xf0c0, 0xd0c0, 0x00000000, "ADDA", head_adda, tab_adda, as_adda, comp_default },
-  { 0xf130, 0xd100, 0x00000515, "ADDX", head_addx, tab_addx, as_addx, comp_default },
-  { 0xf000, 0xd000, 0x00000015, "ADD", head_add, tab_add, as_add, comp_default },
+  { 0xf130, 0xd100, 0x00010515, "ADDX", head_addx, tab_addx, as_addx, comp_default },
+  { 0xf000, 0xd000, 0x00010015, "ADD", head_add, tab_add, as_add, comp_default },
 
   { 0xffc0, 0xe0c0, 0x00000015, "ASR", head_shift, tab_shift_mem, as_asr_mem, comp_default },
   { 0xffc0, 0xe1c0, 0x00000015, "ASL", head_shift, tab_shift_mem, as_asl_mem, comp_default },
