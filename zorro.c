@@ -1,7 +1,10 @@
 /*
- * $Id: zorro.c,v 1.2 1996/07/12 13:10:49 marcus Exp $
+ * $Id: zorro.c,v 1.3 1996/07/13 20:52:46 marcus Exp $
  *
  * $Log: zorro.c,v $
+ * Revision 1.2  1996/07/12 13:10:49  marcus
+ * Fixed zorro_addboard to take filenames instead.
+ *
  * Revision 1.1  1996/07/11 23:02:08  marcus
  * Real ZorroII emulation
  *
@@ -99,7 +102,7 @@ static void unmapboard(struct board *b)
       for(s=0; s<b->numslots; s++)
         z2map[s+b->baseslot-Z2_MINSLOT]=NULL;
     if(mmap((caddr_t)b->mapped_at, SLOT2MEM(b->mappedslots),
-	    PROT_READ, MAP_PRIVATE, devzero, 0)==MAP_FAILED)
+	    PROT_READ, MAP_FIXED|MAP_PRIVATE, devzero, 0)==MAP_FAILED)
       perror("Zorro board unmap");
     b->mapped_at=NULL;
     if(b->baseslot==Z2_CONFSLOT && b->next)
