@@ -1,9 +1,12 @@
 /*
- * $Id: gui.c,v 1.2 1996/07/11 20:13:01 grubba Exp $
+ * $Id: gui.c,v 1.3 1996/07/12 21:09:15 grubba Exp $
  *
  * User Interface for the M68000 to Sparc recompiler
  *
  * $Log: gui.c,v $
+ * Revision 1.2  1996/07/11 20:13:01  grubba
+ * Added buttons to the CPU Monitor window. There is no feedback (yet).
+ *
  * Revision 1.1  1996/07/11 15:37:26  grubba
  * Graphics User-Interface files.
  * Initial version.
@@ -106,6 +109,37 @@ int gui_AllocColor(Display *display, Colormap cmap,
   }
 }
 
+static void gui_DrawBevelBox(Display *display, Window window, GC gc,
+			     int x, int y, int width, int height,
+			     int shadowPixel, int state)
+{
+  int screen_num = DefaultScreen(display);
+
+  if (state) {
+    /* Pressed */
+    XSetForeground(display, gc, BlackPixel(display, screen_num));
+    XDrawLine(display, window, gc, 0, height-2, 0, 0);
+    XDrawLine(display, window, gc, 0, 0, width-2, 0);
+    XSetForeground(display, gc, shadowPixel);
+    XDrawLine(display, window, gc, 1, height-2, width-2, height-2);
+    XDrawLine(display, window, gc, width-2, height-2, width-2, 1);
+    XSetForeground(display, gc, WhitePixel(display, screen_num));
+    XDrawLine(display, window, gc, 0, height-1, width-1, height-1);
+    XDrawLine(display, window, gc, width-1, height-1, width-1, 0);
+  } else {
+    /* Not pressed */
+    XSetForeground(display, gc, WhitePixel(display, screen_num));
+    XDrawLine(display, window, gc, 0, height-2, 0, 0);
+    XDrawLine(display, window, gc, 0, 0, width-2, 0);
+    XSetForeground(display, gc, shadowPixel);
+    XDrawLine(display, window, gc, 1, height-2, width-2, height-2);
+    XDrawLine(display, window, gc, width-2, height-2, width-2, 1);
+    XSetForeground(display, gc, BlackPixel(display, screen_num));
+    XDrawLine(display, window, gc, 0, height-1, width-1, height-1);
+    XDrawLine(display, window, gc, width-1, height-1, width-1, 0);
+  }
+}
+
 static void *gui_button_main(void *arg)
 {
   struct button_args *args = (struct button_args *)arg;
@@ -117,6 +151,7 @@ static void *gui_button_main(void *arg)
     XGCValues gcvalues;
     GC localgc;
     int xx, yy;
+    int state = 0;
     
     window = XCreateSimpleWindow(display, args->root,
 				 args->x, args->y, args->width, args->height, 0,
@@ -140,33 +175,32 @@ static void *gui_button_main(void *arg)
       XNextEvent(display, &event);
 
       switch(event.type) {
+      case ButtonPress:
+	fprintf(stderr, "Button press: %s\n", args->label);
+	state = 1;
+
+	gui_DrawBevelBox(display, window, localgc,
+			 0, 0, args->width, args->height, args->shadowPixel, state);
+	break;
       case ButtonRelease:
 	fprintf(stderr, "Button release: %s\n", args->label);
 
 	args->callback(args->callbackarg);
 
-	/* Fall through */
+	state = 0;
+
+	gui_DrawBevelBox(display, window, localgc,
+			 0, 0, args->width, args->height, args->shadowPixel, state);
+	break;
       case Expose:
-	if ((event.type == Expose) && (event.xexpose.count)) {
+	if (event.xexpose.count) {
 	  break;
 	}
 
-	XSetForeground(display, localgc, WhitePixel(display, screen_num));
-	XDrawLine(display, window, localgc, 0, args->height-2, 0, 0);
-	XDrawLine(display, window, localgc, 0, 0, args->width-2, 0);
-	XSetForeground(display, localgc, args->shadowPixel);
-	XDrawLine(display, window, localgc,
-		  1, args->height-2, args->width-2, args->height-2);
-	XDrawLine(display, window, localgc,
-		  args->width-2, args->height-2, args->width-2, 1);
-	XSetForeground(display, localgc, BlackPixel(display, screen_num));
-	XDrawLine(display, window, localgc,
-		  0, args->height-1, args->width-1, args->height-1);
-	XDrawLine(display, window, localgc,
-		  args->width-1, args->height-1, args->width-1, 0);
+	gui_DrawBevelBox(display, window, localgc,
+			 0, 0, args->width, args->height, args->shadowPixel, state);
+
 	XDrawString(display, window, args->gc, xx, yy, args->label, strlen(args->label));
-	break;
-      case ButtonPress:
 	break;
       }
     }
