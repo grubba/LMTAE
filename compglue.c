@@ -1,9 +1,14 @@
 /*
- * $Id: compglue.c,v 1.6 1996/07/14 21:44:17 grubba Exp $
+ * $Id: compglue.c,v 1.7 1996/07/17 00:19:55 grubba Exp $
  *
  * Help functions for the M68000 to Sparc compiler.
  *
  * $Log: compglue.c,v $
+ * Revision 1.6  1996/07/14 21:44:17  grubba
+ * Added support for adding hardware dynamically.
+ * Added CIAA time of day clock (50Hz).
+ * Moved some debug output from stderr to stdout.
+ *
  * Revision 1.5  1996/07/13 19:32:25  grubba
  * Now defaults to very little debuginfo.
  * Added (un|set)patch().
@@ -299,7 +304,7 @@ ULONG compile(struct code_info *ci)
     {
       extern ULONG opcode_4afc[];
       if (compiler_tab[opcode].template == opcode_4afc) {
-	printf("!! ILLEGAL OPCODE (0x%04x, \"%s\")!!",
+	printf("!! ILLEGAL OPCODE (0x%04x, \"%s\")!!\n",
 	       opcode, compiler_tab[opcode].mnemonic);
       }
     }
@@ -690,7 +695,7 @@ ULONG compile(struct code_info *ci)
   {
     extern ULONG opcode_4afc[];
     if (compiler_tab[opcode].template == opcode_4afc) {
-      printf("!! ILLEGAL OPCODE !!");
+      printf("!! ILLEGAL OPCODE !!\n");
       abort();
     }
   }
