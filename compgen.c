@@ -1,9 +1,12 @@
 /*
- * $Id: compgen.c,v 1.8 1996/07/07 13:29:18 grubba Exp $
+ * $Id: compgen.c,v 1.9 1996/07/08 21:22:13 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.8  1996/07/07 13:29:18  grubba
+ * Removed the obsolete dis_*() functions, and their entry in the opcode_info struct.
+ *
  * Revision 1.7  1996/07/04 18:08:23  grubba
  * Added DIVU and EXT.
  *
@@ -1512,13 +1515,23 @@ void tab_addq(FILE *fp, USHORT opcode, const char *mnemonic)
     /* Special case for adding odd values to A7 */
     fprintf(fp, "0x%08x, opcode_%04x",
 	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
+	    TEF_SRC_QUICK8 | ((opcode + 0x0200) & 0x0e00) |
 	    TEF_WRITE_BACK | TEF_FIX_SR,
 	    (opcode & 0xf100) | ((opcode + 0x0200) & 0x0e00));
   } else {
-    fprintf(fp, "0x%08x, opcode_%04x",
-	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
-	    TEF_WRITE_BACK | TEF_FIX_SR,
-	    opcode & 0xff00);
+    if (opcode & 0x0e00) {
+      fprintf(fp, "0x%08x, opcode_%04x",
+	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
+	      TEF_SRC_QUICK8 | (opcode & 0x0e00) |
+	      TEF_WRITE_BACK | TEF_FIX_SR,
+	      opcode & 0xff00);
+    } else {
+      fprintf(fp, "0x%08x, opcode_%04x",
+	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
+	      TEF_SRC_QUICK8 | (0x08 << 9) |
+	      TEF_WRITE_BACK | TEF_FIX_SR,
+	      opcode & 0xff00);
+    }
   }
 }
 
@@ -1546,13 +1559,23 @@ void tab_subq(FILE *fp, USHORT opcode, const char *mnemonic)
     /* Special case for subtracting odd values to A7 */
     fprintf(fp, "0x%08x, opcode_%04x",
 	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
+	    TEF_SRC_QUICK8 | ((opcode + 0x0200) & 0x0e00) |
 	    TEF_WRITE_BACK | TEF_FIX_SR,
 	    (opcode & 0xf100) | ((opcode + 0x0200) & 0x0e00));
   } else {
-    fprintf(fp, "0x%08x, opcode_%04x",
-	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
-	    TEF_WRITE_BACK | TEF_FIX_SR,
-	    opcode & 0xff00);
+    if (opcode & 0x0e00) {
+      fprintf(fp, "0x%08x, opcode_%04x",
+	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
+	      TEF_SRC_QUICK8 | (opcode & 0x0e00) |
+	      TEF_WRITE_BACK | TEF_FIX_SR,
+	      opcode & 0xff00);
+    } else {
+      fprintf(fp, "0x%08x, opcode_%04x",
+	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
+	      TEF_SRC_QUICK8 | (0x08 << 9) |
+	      TEF_WRITE_BACK | TEF_FIX_SR,
+	      opcode & 0xff00);
+    }
   }
 }
 
@@ -1730,6 +1753,7 @@ int head_moveq(USHORT opcode)
 void tab_moveq(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fprintf(fp, "0x%08x, opcode_%04x",
+	  TEF_SRC_QUICK8 | ((opcode & 0xff)<<9) |
 	  TEF_DST | TEF_DST_LONG | ((opcode & 0x0e00)>>9) | TEF_WRITE_BACK,
 	  (opcode & 0xf1ff));
 }
