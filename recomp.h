@@ -1,7 +1,11 @@
 /*
- * $Id: recomp.h,v 1.3 1996/07/12 21:11:52 grubba Exp $
+ * $Id: recomp.h,v 1.4 1996/07/13 19:32:12 grubba Exp $
  *
  * $Log: recomp.h,v $
+ * Revision 1.3  1996/07/12 21:11:52  grubba
+ * raise_exception() might work a bit better now.
+ * Although at the moment it does an abort() instead of returning.
+ *
  * Revision 1.2  1996/07/08 21:17:42  grubba
  * reset_hw() added.
  *
@@ -55,11 +59,25 @@ extern unsigned char *memory;
 extern int (*comp_tab[])(ULONG *, ULONG **, USHORT *, USHORT);
 
 /*
+ * Debug level
+ *
+ * This is a bitfield.
+ */
+
+extern ULONG debuglevel;
+
+#define DL_COMPILER_VERBOSE	1
+#define DL_COMPILER_DISASSEMBLY	2
+#define DL_RUNTIME_TRACE	4
+
+/*
  * Prototypes
  */
 
 struct m_registers;
 struct code_info;
+
+struct code_info *new_codeinfo(ULONG maddr);
 
 ULONG raise_exception(struct m_registers *regs, USHORT *mem, ULONG vec);
 volatile void compile_and_go(struct m_registers *regs, ULONG maddr);

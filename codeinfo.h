@@ -1,9 +1,15 @@
 /*
- * $Id: codeinfo.h,v 1.2 1996/07/01 19:16:40 grubba Exp $
+ * $Id: codeinfo.h,v 1.3 1996/07/13 19:32:23 grubba Exp $
  *
  * Functions for handling segments of code.
  *
  * $Log: codeinfo.h,v $
+ * Revision 1.2  1996/07/01 19:16:40  grubba
+ * Implemented ASL and ASR.
+ * Changed semantics for new_codeinfo(), it doesn't allocate space for the code.
+ * Added PeepHoleOptimize(). At the moment it just mallocs and copies the code.
+ * Removed some warnings.
+ *
  * Revision 1.1.1.1  1996/06/30 23:51:51  grubba
  * Entry into CVS
  *
@@ -28,6 +34,12 @@
 #define CODEINFO_H
 
 /*
+ * Globals
+ */
+
+extern struct seg_info *code_tree;
+
+/*
  * Structures
  */
 
@@ -49,6 +61,9 @@ struct code_info {
   ULONG *codeend;
   ULONG checksum;
 };
+
+#define CIF_LOCKED	1
+#define CIF_PATCHED	2
 
 /*
  * Prototypes

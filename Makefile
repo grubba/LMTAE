@@ -1,9 +1,12 @@
 #
-# $Id: Makefile,v 1.10 1996/07/13 12:45:52 grubba Exp $
+# $Id: Makefile,v 1.11 1996/07/13 19:32:21 grubba Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.10  1996/07/13 12:45:52  grubba
+# Now possible to build on hanna.
+#
 # Revision 1.9  1996/07/13 12:17:24  grubba
 # /usr/local/lib added to library search path to make it possible to run it on hanna.
 #
@@ -114,9 +117,9 @@ rtest : rtest.o compglue.o peephole.o opcodes.o\
 	templates/glue.o memory.o opcodes.o tables.o
 
 recomp : recomp.o compglue.o peephole.o codeinfo.o hardware.o zorro.o\
-	disassembler.o\
+	disassembler.o sanity.o setpatch.o\
 	gui/gui.o gui/regdump.o gui/info.o gui/disassembler.o\
-	opcodes.o memory.o templates/glue.o opcodes.o tables.o sanity.o
+	opcodes.o memory.o templates/glue.o opcodes.o tables.o
 
 citest : citest.o codeinfo.o
 

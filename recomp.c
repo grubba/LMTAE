@@ -1,9 +1,13 @@
 /*
- * $Id: recomp.c,v 1.8 1996/07/12 21:11:49 grubba Exp $
+ * $Id: recomp.c,v 1.9 1996/07/13 19:32:09 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.8  1996/07/12 21:11:49  grubba
+ * raise_exception() might work a bit better now.
+ * Although at the moment it does an abort() instead of returning.
+ *
  * Revision 1.7  1996/07/12 13:11:38  marcus
  * Added the hardfile board
  *
@@ -69,7 +73,6 @@
 #include "m68k.h"
 #include "sparc.h"
 
-
 /*
  * Define this to get runtime sanity checks of the emulated Amiga
  */
@@ -89,6 +92,9 @@ void check_sanity(struct code_info *ci, struct m_registers *regs, unsigned char 
 unsigned char *memory;
 extern struct seg_info *code_tree;
 
+/* Debug level */
+
+ULONG debuglevel;
 
 /*
  * Functions
@@ -99,13 +105,13 @@ void dump_m_regs(struct m_registers *regs)
   int i;
 
   for (i = 0; i < 0x10; i++) {
-    fprintf(stderr, "%c%d: %08lx, ", (i & 0x08)?'A':'D', i & 0x07,
+    fprintf(stdout, "%c%d: %08lx, ", (i & 0x08)?'A':'D', i & 0x07,
 	    ((ULONG *)regs)[i]);
     if ((i & 0x03) == 0x03) {
-      fprintf(stderr,"\n");
+      fprintf(stdout,"\n");
     }
   }
-  fprintf(stderr,
+  fprintf(stdout,
 	  "usp: %08lx, ssp: %08lx, sr: %08lx, pc: %08lx\n"
 	  "low: %08lx, high: %08lx, vbr: %08lx\n",
 	  regs->usp, regs->ssp, regs->sr, regs->pc,
@@ -196,12 +202,14 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
     if ((!segment) || (segment->maddr > maddr) || (segment->mend <= maddr)) {
       segment = find_seg(code_tree, maddr);
 #ifdef DEBUG
-      if (segment) {
-	fprintf(stderr,
-		"0x%08lx called from 0x%08lx, New segment [0x%08lx - 0x%08lx]\r",
-		maddr, regs->pc, segment->maddr, segment->mend);
-      } else {
-	fprintf(stderr, "0x%08lx called from 0x%08lx\r", maddr, regs->pc);
+      if (debuglevel & DL_RUNTIME_TRACE) {
+	if (segment) {
+	  fprintf(stdout,
+		  "0x%08lx called from 0x%08lx, New segment [0x%08lx - 0x%08lx]\r",
+		  maddr, regs->pc, segment->maddr, segment->mend);
+	} else {
+	  fprintf(stdout, "0x%08lx called from 0x%08lx\r", maddr, regs->pc);
+	}
       }
 #endif /* DEBUG */
     }
@@ -211,18 +219,26 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
       ULONG mend;
       ci = new_codeinfo(maddr);
 
-      fprintf(stderr, "Compiling 0x%08lx, called from 0x%08lx...\n",
-	      maddr, regs->pc);
-
+#ifdef DEBUG
+      if (debuglevel & DL_RUNTIME_TRACE) {
+	fprintf(stdout, "Compiling 0x%08lx, called from 0x%08lx...\n",
+		maddr, regs->pc);
+      }
+#endif /* DEBUG */
       mend = compile(ci);
       
       if (!segment) {
-	fprintf(stderr, "Creating new segment, maddr: %08lx, end: %08lx\n",
-		maddr, mend);
+#ifdef DEBUG
+	if (debuglevel & DL_COMPILER_VERBOSE) {
+	  fprintf(stdout, "Creating new segment, maddr: %08lx, end: %08lx\n",
+		  maddr, mend);
+	}
+#endif /* DEBUG */
 	segment = insert_seg(&code_tree, maddr, mend);
 	if (!segment) {
 	  /* BUS ERROR? */
-	  return;
+	  fprintf(stderr, "Out of memory?\n");
+	  abort();
 	}
       } else if (mend != segment->mend) {
 	fprintf(stderr, "Strange ending, orig:%08lx, new:%08lx\n", segment->mend, mend);
@@ -233,10 +249,13 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
       segment->codeinfo = ci;
 
 #ifdef DEBUG
-      disassemble(maddr, mend);
+      if (debuglevel & DL_COMPILER_DISASSEMBLY) {
+	disassemble(maddr, mend);
+      }
+      if (debuglevel & DL_COMPILER_VERBOSE) {
+	fprintf(stdout, "Execute!\n");
+      }
 #endif /* DEBUG */
-
-      fprintf(stderr, "Execute!\n");
     }
 
     regs->pc = maddr;
@@ -266,7 +285,7 @@ void *cpu_thread_main(void *args)
   start_register_dump(&regs);
 
 #ifdef DEBUG
-  fprintf(stderr, "Starting CPU at 0x%08lx\n", start_addr);
+  fprintf(stdout, "Starting CPU at 0x%08lx\n", start_addr);
 #endif /* DEBUG */
 
   compile_and_go(&regs, start_addr);
@@ -287,13 +306,45 @@ int devzero = -1;
 
 int main(int argc, char **argv)
 {
+  int i;
   int romfd = -1;
+  char *romdump = "./ROM.dump";
   unsigned char *rommem;
   
+  for (i = 1;i < argc;i++) {
+    if (argv[i][0] == '-') {
+      switch(argv[i][1]) {
+      case 'C':
+	debuglevel |= DL_COMPILER_VERBOSE;
+	break;
+      case 'D':
+	debuglevel |= DL_COMPILER_DISASSEMBLY;
+	break;
+      case 't':
+	debuglevel |= DL_RUNTIME_TRACE;
+	break;
+      default:
+	fprintf(stderr,
+		"Usage:\n"
+		"\t%s [flags] [romdump]\n\n"
+		"Available flags are:\n"
+		"-C\tVerbose compiler\n"
+		"-D\tDisassemble\n"
+		"-t\tRuntime trace\n"
+		"\nThe current romdump is \"%s\".\n",
+		argv[0], romdump);
+	exit(1);
+	break;
+      }
+    } else {
+      romdump = argv[i];
+    }
+  }
+
   if ((devzero = open("/dev/zero", O_RDONLY)) >= 0) {
     if ((memory = (UBYTE *)mmap((caddr_t)NULL, 16*1024*1024, PROT_READ|PROT_WRITE,
 				MAP_PRIVATE, devzero, 0))) {
-      if ((romfd = open("./ROM.dump", O_RDONLY)) >= 0) {
+      if ((romfd = open(romdump, O_RDONLY)) >= 0) {
 	if ((rommem = (UBYTE *)mmap((caddr_t)(memory + 0x00f80000), 512*1024,
 				    PROT_READ, MAP_SHARED|MAP_FIXED, romfd, 0))) {
 	  if (rommem == memory + 0x00f80000) {
@@ -344,10 +395,10 @@ int main(int argc, char **argv)
 	    fprintf(stderr, "Bad ROM-map\n");
 	  }
 	} else {
-	  fprintf(stderr, "Couldn't mmap ./ROM.dump\n");
+	  fprintf(stderr, "Couldn't mmap \"%s\"\n", romdump);
 	}
       } else {
-	fprintf(stderr, "Couldn't open ./ROM.dump\n");
+	fprintf(stderr, "Couldn't open \"%s\"\n", romdump);
       }
     } else {
       fprintf(stderr, "Couldn't mmap /dev/zero\n");

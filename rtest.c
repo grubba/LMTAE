@@ -1,9 +1,12 @@
 /*
- * $Id: rtest.c,v 1.1.1.1 1996/06/30 23:51:53 grubba Exp $
+ * $Id: rtest.c,v 1.2 1996/07/13 19:32:19 grubba Exp $
  *
  * Test rpogram for the M68000 to Sparc recompiler.
  *
  * $Log: rtest.c,v $
+ * Revision 1.1.1.1  1996/06/30 23:51:53  grubba
+ * Entry into CVS
+ *
  * Revision 1.2  1996/06/19 11:08:25  grubba
  * *** empty log message ***
  *
@@ -33,6 +36,8 @@
 
 unsigned char *memory = NULL;
 
+unsigned long debuglevel = ~0;
+
 /*
  * Stubs
  */
@@ -48,7 +53,7 @@ ULONG clobber_code_byte(ULONG maddr, UBYTE val){}
 ULONG clobber_code_short(ULONG maddr, USHORT val){}
 void clobber_code(ULONG maddr, ULONG val){}
 
-volatile void raise_exception(struct m_registers *regs, USHORT *mem, ULONG vec){}
+ULONG raise_exception(struct m_registers *regs, USHORT *mem, ULONG vec){return 0;}
 
 /*
  * Functions

@@ -32,6 +32,8 @@
 /recomp.h foreign_ident
 /rtest.c foreign_ident
 /sanity.c foreign_ident
+/setpatch.c foreign_ident
+/setpatch.h foreign_ident
 /sparc.h foreign_ident
 /templates/glue.gasp foreign_ident
 /templates/glue.h foreign_ident

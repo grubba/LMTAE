@@ -1,9 +1,12 @@
 /*
- * $Id: compglue.c,v 1.4 1996/07/10 20:22:08 grubba Exp $
+ * $Id: compglue.c,v 1.5 1996/07/13 19:32:25 grubba Exp $
  *
  * Help functions for the M68000 to Sparc compiler.
  *
  * $Log: compglue.c,v $
+ * Revision 1.4  1996/07/10 20:22:08  grubba
+ * Fixed bug where "or %lo(val), %g4, %ea" was generated instead of "or %lo(val), %g0, %ea".
+ *
  * Revision 1.3  1996/07/08 21:20:44  grubba
  * *** empty log message ***
  *
@@ -64,7 +67,7 @@
  */
 
 #ifdef DEBUG
-#define DPRINTF(x)	do { printf x; fflush(stdout); } while (0)
+#define DPRINTF(x)	do { if (debuglevel & DL_COMPILER_VERBOSE) { printf x; fflush(stdout); } } while (0)
 #else
 #define DPRINTF(x)
 #endif
@@ -111,7 +114,9 @@ void emit_clobber_byte(ULONG **code, UBYTE sdst, UBYTE sval)
 
 void break_me(void)
 {
-  fprintf(stdout, "Leaving compiler\n");
+  if (debuglevel & DL_COMPILER_VERBOSE) {
+    fprintf(stdout, "Leaving compiler\n");
+  }
 }
 
 /*
@@ -674,10 +679,6 @@ ULONG compile(struct code_info *ci)
       *(code++) = 0xae05e000 + 2*(pc - oldpc);
     }
 
-    if (flags & TEF_MOVEM) {
-      fprintf(stderr, "MOVEM HALT!\nstart 0x%08lx, end 0x%08lx\tpc 0x%08lx\n\n",
-	      ((ULONG)ci->code), ((ULONG)code), oldpc*2);
-    }
   } while (!(flags & TEF_TERMINATE));
 #ifdef DEBUG
   {
