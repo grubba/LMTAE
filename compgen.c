@@ -1,9 +1,13 @@
 /*
- * $Id: compgen.c,v 1.21 1996/08/10 15:47:56 grubba Exp $
+ * $Id: compgen.c,v 1.22 1996/08/10 18:48:55 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.21  1996/08/10 15:47:56  grubba
+ * Optimized some opcodes.
+ * Prepared for partial SR optimization.
+ *
  * Revision 1.20  1996/08/04 14:22:41  grubba
  * The compiler table now holds information needed for SR optimization.
  *
@@ -349,13 +353,7 @@ void tab_andi(FILE *fp, U16 opcode, const char *mnemonic)
 void as_andi(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	andcc	%%acc1, %%acc0, %%acc0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n");
+	  "	andcc	%%acc1, %%acc0, %%acc0\n");
 }
 
 void tab_andi_sr(FILE *fp, U16 opcode, const char *mnemonic)
@@ -427,11 +425,7 @@ void as_bchg(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	mov	0x01, %%o0\n"
 	  "	sll	%%o0, %%acc1, %%o0\n"
 	  "	btst	%%acc0, %%o0\n"
-	  "	xor	%%acc0, %%o0, %%acc0\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "	and	-5, %%sr, %%sr\n"
-	  "0:\n");
+	  "	xor	%%acc0, %%o0, %%acc0\n");
 }
 
 int head_bclr(U16 opcode)
@@ -477,11 +471,7 @@ void as_bclr(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	mov	0x01, %%o0\n"
 	  "	sll	%%o0, %%acc1, %%o0\n"
 	  "	btst	%%acc0, %%o0\n"
-	  "	andn	%%acc0, %%o0, %%acc0\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "	and	-5, %%sr, %%sr\n"
-	  "0:\n");
+	  "	andn	%%acc0, %%o0, %%acc0\n");
 }
 
 int head_bset(U16 opcode)
@@ -527,11 +517,7 @@ void as_bset(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	mov	0x01, %%o0\n"
 	  "	sll	%%o0, %%acc1, %%o0\n"
 	  "	btst	%%acc0, %%o0\n"
-	  "	or	%%acc0, %%o0, %%acc0\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "	and	-5, %%sr, %%sr\n"
-	  "0:\n");
+	  "	or	%%acc0, %%o0, %%acc0\n");
 }
 
 int head_btst(U16 opcode)
@@ -575,11 +561,7 @@ void as_btst(FILE *fp, U16 opcode, const char *mnemonic)
   fprintf(fp,
 	  "	mov	0x01, %%o0\n"
 	  "	sll	%%o0, %%acc1, %%o0\n"
-	  "	btst	%%acc0, %%o0\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "	and	-5, %%sr, %%sr\n"
-	  "0:\n");
+	  "	btst	%%acc0, %%o0\n");
 }
 
 int head_cmp(U16 opcode)
@@ -597,19 +579,7 @@ void tab_cmp(FILE *fp, U16 opcode, const char *mnemonic)
 void as_cmp(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	subcc	%%acc0, %%acc1, %%g0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n"
-	  "	bvs,a	0f\n"
-	  "	or	2, %%sr, %%sr\n"
-	  "0:\n"
-	  "	bcs,a	0f\n"
-	  "	or	1, %%sr, %%sr\n"
-	  "0:\n");
+	  "	subcc	%%acc0, %%acc1, %%g0\n");
 }
 
 int head_cmpa(U16 opcode)
@@ -625,8 +595,7 @@ void tab_cmpa(FILE *fp, U16 opcode, const char *mnemonic)
     /* Long */
     fprintf(fp, "0x%08x, opcode_b0c0",
 	    TEF_SRC | TEF_SRC_LOAD | ((opcode & 0x003f)<<9) | TEF_SRC_LONG |
-	    TEF_DST | TEF_DST_LOAD | ((opcode & 0x1e00)>>9) | TEF_DST_LONG |
-	    TEF_FIX_SR);
+	    TEF_DST | TEF_DST_LOAD | ((opcode & 0x1e00)>>9) | TEF_DST_LONG);
   } else {
     /* Word */
     fprintf(fp, "0x%08x, opcode_b0c0",
@@ -638,19 +607,7 @@ void tab_cmpa(FILE *fp, U16 opcode, const char *mnemonic)
 void as_cmpa(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	subcc	%%acc0, %%acc1, %%g0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n"
-	  "	bvs,a	0f\n"
-	  "	or	2, %%sr, %%sr\n"
-	  "0:\n"
-	  "	bcs,a	0f\n"
-	  "	or	1, %%sr, %%sr\n"
-	  "0:\n");
+	  "	subcc	%%acc0, %%acc1, %%g0\n");
 }
 
 int head_cmpi(U16 opcode)
@@ -669,19 +626,7 @@ void tab_cmpi(FILE *fp, U16 opcode, const char *mnemonic)
 void as_cmpi(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	subcc	%%acc0, %%acc1, %%g0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n"
-	  "	bvs,a	0f\n"
-	  "	or	2, %%sr, %%sr\n"
-	  "0:\n"
-	  "	bcs,a	0f\n"
-	  "	or	1, %%sr, %%sr\n"
-	  "0:\n");
+	  "	subcc	%%acc0, %%acc1, %%g0\n");
 }
 
 int head_cmpm(U16 opcode)
@@ -694,25 +639,13 @@ void tab_cmpm(FILE *fp, U16 opcode, const char *mnemonic)
   fprintf(fp, "0x%08x, opcode_b108",
 	  TEF_SRC | TEF_SRC_LOAD | 0x3000 | (opcode & 0x0e00) |
 	  TEF_DST | TEF_DST_LOAD | 0x0018 | (opcode & 0x00c7) |
-	  ((opcode & 0x00c0)<<9) | TEF_FIX_SR);
+	  ((opcode & 0x00c0)<<9));
 }
 
 void as_cmpm(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	subcc	%%acc0, %%acc1, %%g0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n"
-	  "	bvs,a	0f\n"
-	  "	or	2, %%sr, %%sr\n"
-	  "0:\n"
-	  "	bcs,a	0f\n"
-	  "	or	1, %%sr, %%sr\n"
-	  "0:\n");
+	  "	subcc	%%acc0, %%acc1, %%g0\n");
 }
 
 
@@ -835,13 +768,7 @@ void as_move(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* Fix SR */
   fprintf(fp,
-	  "	orcc	%%acc1, %%g0, %%acc0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n");
+	  "	orcc	%%acc1, %%g0, %%acc0\n");
 }
 
 int head_move_sr(U16 opcode)
@@ -934,13 +861,7 @@ void tab_ori(FILE *fp, U16 opcode, const char *mnemonic)
 void as_ori(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	orcc	%%acc1, %%acc0, %%acc0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n");
+	  "	orcc	%%acc1, %%acc0, %%acc0\n");
 }
 
 int head_ori_ccr(U16 opcode)
@@ -1042,13 +963,7 @@ void tab_not(FILE *fp, U16 opcode, const char *mnemonic)
 void as_not(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	xorcc	-1, %%acc0, %%acc0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n");
+	  "	xorcc	-1, %%acc0, %%acc0\n");
 }
 
 int head_pea(U16 opcode)
@@ -1371,13 +1286,7 @@ void as_swap(FILE *fp, U16 opcode, const char *mnemonic)
   fprintf(fp,
 	  "	srl	%%acc0, 0x10, %%o0\n"
 	  "	sll	%%acc0, 0x10, %%acc0\n"
-	  "	orcc	%%acc0, %%o0, %%acc0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n");
+	  "	orcc	%%acc0, %%o0, %%acc0\n");
 }
 
 int head_ext(U16 opcode)
@@ -1406,13 +1315,7 @@ void as_ext(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* We already sign-extend on load */
   fprintf(fp,
-	  "	orcc	%%acc1, %%g0, %%acc0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n");
+	  "	orcc	%%acc1, %%g0, %%acc0\n");
 }
 
 int head_subi(U16 opcode)
@@ -1448,13 +1351,7 @@ void tab_tst(FILE *fp, U16 opcode, const char *mnemonic)
 void as_tst(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	cmp	%%acc0, %%g0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n");
+	  "	cmp	%%acc0, %%g0\n");
 }
 
 int head_unlk(U16 opcode)
@@ -2011,13 +1908,7 @@ void tab_or(FILE *fp, U16 opcode, const char *mnemonic)
 void as_or(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	orcc	%%acc0, %%acc1, %%acc0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n");
+	  "	orcc	%%acc0, %%acc1, %%acc0\n");
 }
 
 int head_suba(U16 opcode)
@@ -2080,19 +1971,11 @@ void tab_mulu(FILE *fp, U16 opcode, const char *mnemonic)
 
 void as_mulu(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  /* FIXME: Should the parameters to ANDN be reversed? */
-  /* FIXME: Fix SR */
   fprintf(fp,
 	  "	sethi	%%hi(0xffff0000), %%o0\n"
-	  "	and	-16, %%sr, %%sr\n"
 	  "	andn	%%acc0, %%o0, %%acc0\n"
 	  "	andn	%%acc1, %%o0, %%acc1\n"
-	  "	smulcc	%%acc0, %%acc1, %%acc0\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n");
+	  "	smulcc	%%acc0, %%acc1, %%acc0\n");
 }
 
 int head_muls(U16 opcode)
@@ -2112,14 +1995,8 @@ void as_muls(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
 	  "	sll	%%acc0, 0x10, %%acc0\n"
-	  "	and	-16, %%sr, %%sr\n"
 	  "	srl	%%acc0, 0x10, %%acc0\n"
-	  "	smulcc	%%acc0, %%acc1, %%acc0\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n");
+	  "	smulcc	%%acc0, %%acc1, %%acc0\n");
 }
 
 int head_eor(U16 opcode)
@@ -2137,13 +2014,7 @@ void tab_eor(FILE *fp, U16 opcode, const char *mnemonic)
 void as_eor(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	xorcc	%%acc0, %%acc1, %%acc0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n");
+	  "	xorcc	%%acc0, %%acc1, %%acc0\n");
 }
 
 int head_exg(U16 opcode)
@@ -2206,13 +2077,7 @@ void tab_and(FILE *fp, U16 opcode, const char *mnemonic)
 void as_and(FILE *fp, U16 opcode, const char *mnemonic)
 {
   fprintf(fp,
-	  "	andcc	%%acc0, %%acc1, %%acc0\n"
-	  "	and	-16, %%sr, %%sr\n"
-	  "	blt,a	0f\n"
-	  "	or	8, %%sr, %%sr\n"
-	  "	be,a	0f\n"
-	  "	or	4, %%sr, %%sr\n"
-	  "0:\n");
+	  "	andcc	%%acc0, %%acc1, %%acc0\n");
 }
 
 int head_adda(U16 opcode)
@@ -3155,7 +3020,7 @@ struct opcode_info opcodes[] = {
   { 0xffc0, 0x08c0, 0x00040003, "BSET", head_bset, tab_bset, as_bset, comp_default },
   { 0xffff, 0x003c, 0x00001515, "ORI_CCR", head_ori_ccr, tab_ori_ccr, as_ori_ccr, comp_default },
   { 0xffff, 0x007c, 0x00001f1f, "ORI_SR", head_ori_sr, tab_ori_sr, as_ori_sr, comp_default },
-  { 0xff00, 0x0000, 0x00000014, "ORI", head_ori, tab_ori, as_ori, comp_default },
+  { 0xff00, 0x0000, 0x00030014, "ORI", head_ori, tab_ori, as_ori, comp_default },
   { 0xffff, 0x023c, 0x00001515, "ANDI_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xffff, 0x027c, 0x00001f1f, "ANDI_SR", head_default, tab_andi_sr, as_andi_sr, comp_default },
   { 0xff00, 0x0200, 0x00030014, "ANDI", head_andi, tab_andi, as_andi, comp_default },
@@ -3231,7 +3096,7 @@ struct opcode_info opcodes[] = {
   { 0xf000, 0x8000, 0x00030014, "OR", head_or, tab_or, as_or, comp_default },
 
   { 0xf0c0, 0x90c0, 0x00000000, "SUBA", head_suba, tab_suba, as_suba, comp_default },
-  { 0xf130, 0x9100, 0x00000515, "SUBX", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf130, 0x9100, 0x00010515, "SUBX", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xf000, 0x9000, 0x00010015, "SUB", head_sub, tab_sub, as_sub, comp_default },
 
   { 0xf000, 0xa000, 0x00001f00, "LINE A", head_not_implemented, tab_illegal, as_illegal, comp_default },
