@@ -1,9 +1,14 @@
 #
-# $Id: Makefile,v 1.12 1996/07/14 21:44:13 grubba Exp $
+# $Id: Makefile,v 1.13 1996/07/19 16:46:07 grubba Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.12  1996/07/14 21:44:13  grubba
+# Added support for adding hardware dynamically.
+# Added CIAA time of day clock (50Hz).
+# Moved some debug output from stderr to stdout.
+#
 # Revision 1.11  1996/07/13 19:32:21  grubba
 # Now defaults to very little debuginfo.
 # Added (un|set)patch().
@@ -123,7 +128,7 @@ rtest : rtest.o compglue.o peephole.o opcodes.o\
 	templates/glue.o memory.o opcodes.o tables.o
 
 recomp : recomp.o compglue.o peephole.o codeinfo.o\
-	hardware.o cia.o zorro.o\
+	interrupt.o hardware.o custom.o cia.o zorro.o\
 	disassembler.o sanity.o setpatch.o\
 	gui/gui.o gui/regdump.o gui/info.o gui/disassembler.o\
 	opcodes.o memory.o templates/glue.o opcodes.o tables.o
@@ -173,6 +178,8 @@ blitter.o : sparcblit.o minterms.o
 		cp $< $<.old; \
 	fi; \
 	exit $$?
+
+custom.o : custom_tab.c
 
 compglue.o : opcodes.h
 

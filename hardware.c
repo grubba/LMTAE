@@ -1,9 +1,13 @@
 /*
- * $Id: hardware.c,v 1.9 1996/07/17 16:01:31 grubba Exp $
+ * $Id: hardware.c,v 1.10 1996/07/19 16:46:15 grubba Exp $
  *
  * Hardware emulation for the M68000 to Sparc recompiler.
  *
  * $Log: hardware.c,v $
+ * Revision 1.9  1996/07/17 16:01:31  grubba
+ * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
+ * Hopefully all places got patched.
+ *
  * Revision 1.8  1996/07/17 00:13:05  grubba
  * Fixed a sorting bug in add_hw() -- it didn't sort the first element.
  * Added name arg to add_hw().
@@ -77,49 +81,6 @@ U32 read_bad(U32 addr, U32 base)
 void write_bad(U32 addr, U32 val, U32 base)
 {
   fprintf(stdout, "write_bad(0x%08x, 0x%08x, 0x%08x)\n", addr, val, base);
-}
-
-U32 read_custom(U32 addr, U32 base)
-{
-  U32 val;
-
-  fprintf(stdout, "read_custom(0x%08x, 0x%08x)\n", addr, base);
-
-  val = ((S16 *)memory)[addr>>1];
-
-  if (((addr - 0xdff000) >= 0x180) && ((addr - 0xdff000) < (0x180 + 0x20))) {
-    fprintf(stdout, "Reading color %d (0x%04x)\n",
-	    ((addr - 0xdff000) - 0x180), (val & 0xffff));
-  } else if (addr == 0xdff006) {
-    fprintf(stdout, "Reading VHPOSR 0x%08x\n", ((U32 *)memory)[0xdff004>>2]);
-    ((U32 *)memory)[0xdff004>>2] += 0x00000101;
-    ((U32 *)memory)[0xdff004>>2] &= 0x0001ffff;
-  }
-  return(val);
-}
-
-void write_custom(U32 addr, U32 val, U32 base)
-{
-  fprintf(stdout, "write_custom(0x%08x, 0x%08x, 0x%08x)\n", addr, val, base);
-
-  if (((addr - 0xdff000) >= 0x180) && ((addr - 0xdff000) < (0x180 + 0x20))) {
-    fprintf(stdout, "Setting color %d to 0x%04x\n",
-	    ((addr - 0xdff000) - 0x180), (val & 0xffff));
-  }
-  ((U16 *)memory)[addr>>1] = val;
-}
-
-void reset_custom(U32 base)
-{
-  fprintf(stdout, "Custom base is 0x%08x\n", base);
-}
-
-void init_custom(void)
-{
-  add_hw(0x00dff000, 0x00001000, "Custom Chips", 
-	 NULL, read_custom, read_bad,
-	 write_bad, write_custom, write_bad,
-	 reset_custom);
 }
 
 #ifdef notdef

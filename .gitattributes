@@ -18,6 +18,8 @@
 /compgen.c foreign_ident
 /compglue.c foreign_ident
 /compiler.h foreign_ident
+/custom.c foreign_ident
+/custom_tab.c foreign_ident
 /disassembler.c foreign_ident
 /gui.h foreign_ident
 /gui/disassembler.c foreign_ident
@@ -26,6 +28,8 @@
 /gui/regdump.c foreign_ident
 /hardware.c foreign_ident
 /hardware.h foreign_ident
+/interrupt.c foreign_ident
+/interrupt.h foreign_ident
 /m68k.h foreign_ident
 /m68k.txt foreign_ident
 /peephole.c foreign_ident
