@@ -1,9 +1,12 @@
 /*
- * $Id: compgen.c,v 1.4 1996/07/02 22:17:31 grubba Exp $
+ * $Id: compgen.c,v 1.5 1996/07/03 15:01:14 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.4  1996/07/02 22:17:31  grubba
+ * The immediate shift opcodes didn't shift when the arg was 0 i.e. 8.
+ *
  * Revision 1.3  1996/07/01 19:16:44  grubba
  * Implemented ASL and ASR.
  * Changed semantics for new_codeinfo(), it doesn't allocate space for the code.
@@ -1822,7 +1825,7 @@ void tab_or(FILE *fp, USHORT opcode, const char *mnemonic)
   ULONG base = TEF_SRC | TEF_SRC_LOAD | TEF_DST | TEF_DST_LOAD | TEF_WRITE_BACK |
     (opcode & 0x00c0) | ((opcode & 0x00c0)<<9);
   if (opcode & 0x0100) {
-    fprintf(fp, "0x%08lx, opcode_8000", base | (opcode & 0xe03f));
+    fprintf(fp, "0x%08lx, opcode_8000", base | (opcode & 0x0e3f));
   } else {
     fprintf(fp, "0x%08lx, opcode_8000",
 	    base | ((opcode & 0x0e00)>>9) | ((opcode & 0x003f)<<9));
