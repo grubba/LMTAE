@@ -1,9 +1,12 @@
 /*
- * $Id: recomp.c,v 1.19 1998/02/10 01:02:27 marcus Exp $
+ * $Id: recomp.c,v 1.20 1998/02/10 02:03:38 marcus Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.19  1998/02/10 01:02:27  marcus
+ * Added a switch to turn off the GUI.
+ *
  * Revision 1.18  1996/08/13 13:29:50  grubba
  * Implemented TEF_FASTMODE.
  *
@@ -453,6 +456,19 @@ volatile void Usage(char *arg0, char *romdump)
   exit(1);
 }
 
+thread_t vblank_thread;
+
+void *vblank_entry(void *arg)
+{
+  for(;;) {
+    usleep(20000);
+    mutex_lock(&irq_ctrl_lock);
+    ((U16 *)memory)[0xdff01e>>1] |= 0x20;
+    cond_signal(&irq_ctrl_signal);
+    mutex_unlock(&irq_ctrl_lock);
+  }
+}
+
 int main(int argc, char **argv)
 {
   int i;
@@ -552,6 +568,9 @@ int main(int argc, char **argv)
 	    reset_hw();
 
 	    start_cpu();
+
+	    thr_create(NULL, THR_MIN_STACK, vblank_entry, NULL,
+		       THR_DETACHED | THR_DAEMON, &vblank_thread);
 
 	    sleep(500000);
 
