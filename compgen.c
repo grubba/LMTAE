@@ -1,9 +1,13 @@
 /*
- * $Id: compgen.c,v 1.19 1996/07/17 20:11:12 grubba Exp $
+ * $Id: compgen.c,v 1.20 1996/08/04 14:22:41 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.19  1996/07/17 20:11:12  grubba
+ * Added EOR.
+ * Fixed bug with AND -- bad mask.
+ *
  * Revision 1.18  1996/07/17 19:16:23  grubba
  * Implemented interrupts. None generated yet though.
  * Implemented STOP.
@@ -3112,6 +3116,7 @@ int comp_load(FILE *fp, U8 size, U8 mode, U8 mreg)
 
 struct opcode_info {
   U16 mask, tag;
+  U32 sr_magic;
   const char *mnemonic;
   int (*as_header)(U16 opcode);
   void (*tab_entry)(FILE *fp, U16 opcode, const char *);
@@ -3120,147 +3125,160 @@ struct opcode_info {
 };
 
 /*
+ * sr_magic encoding:
+ *
+ * 3322222222221111111111
+ * 10987654321098765432109876543210
+ *
+ *                    0nnnn		SR bit (n-1) needed.
+ *                    1nnnn		SR bits 0-(n-1) needed.
+ *                            0nnnn	SR bit (n-1) changed.
+ *                            1nnnn	SR bits 0-(n-1) changed.
+ *
+ */
+
+/*
  * Globals
  */
 
 struct opcode_info opcodes[] = {
-  { 0xf138, 0x0108, "MOVEP", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf1c0, 0x0100, "BTST", head_btst, tab_btst, as_btst, comp_default },
-  { 0xf1c0, 0x0140, "BCHG", head_bchg, tab_bchg, as_bchg, comp_default },
-  { 0xf1c0, 0x0180, "BCLR", head_bclr, tab_bclr, as_bclr, comp_default },
-  { 0xf1c0, 0x01c0, "BSET", head_bset, tab_bset, as_bset, comp_default },
-  { 0xffc0, 0x0800, "BTST", head_btst, tab_btst, as_btst, comp_default },
-  { 0xffc0, 0x0840, "BCHG", head_bchg, tab_bchg, as_bchg, comp_default },
-  { 0xffc0, 0x0880, "BCLR", head_bclr, tab_bclr, as_bclr, comp_default },
-  { 0xffc0, 0x08c0, "BSET", head_bset, tab_bset, as_bset, comp_default },
-  { 0xffff, 0x003c, "ORI_CCR", head_ori_ccr, tab_ori_ccr, as_ori_ccr, comp_default },
-  { 0xffff, 0x007c, "ORI_SR", head_ori_sr, tab_ori_sr, as_ori_sr, comp_default },
-  { 0xff00, 0x0000, "ORI", head_ori, tab_ori, as_ori, comp_default },
-  { 0xffff, 0x023c, "ANDI_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xffff, 0x027c, "ANDI_SR", head_default, tab_andi_sr, as_andi_sr, comp_default },
-  { 0xff00, 0x0200, "ANDI", head_andi, tab_andi, as_andi, comp_default },
-  { 0xff00, 0x0400, "SUBI", head_subi, tab_subi, as_subi, comp_default },
-  { 0xff00, 0x0600, "ADDI", head_addi, tab_addi, as_addi, comp_default },
-  { 0xffff, 0x0a3c, "EORI_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xffff, 0x0a7c, "EORI_SR", head_default, tab_eori_sr, as_eori_sr, comp_default },
-  { 0xff00, 0x0a00, "EORI", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xff00, 0x0c00, "CMPI", head_cmpi, tab_cmpi, as_cmpi, comp_default },
-  { 0xff00, 0x0e00, "MOVES", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf138, 0x0108, 0x00000000, "MOVEP", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf1c0, 0x0100, 0x00000003, "BTST", head_btst, tab_btst, as_btst, comp_default },
+  { 0xf1c0, 0x0140, 0x00000003, "BCHG", head_bchg, tab_bchg, as_bchg, comp_default },
+  { 0xf1c0, 0x0180, 0x00000003, "BCLR", head_bclr, tab_bclr, as_bclr, comp_default },
+  { 0xf1c0, 0x01c0, 0x00000003, "BSET", head_bset, tab_bset, as_bset, comp_default },
+  { 0xffc0, 0x0800, 0x00000003, "BTST", head_btst, tab_btst, as_btst, comp_default },
+  { 0xffc0, 0x0840, 0x00000003, "BCHG", head_bchg, tab_bchg, as_bchg, comp_default },
+  { 0xffc0, 0x0880, 0x00000003, "BCLR", head_bclr, tab_bclr, as_bclr, comp_default },
+  { 0xffc0, 0x08c0, 0x00000003, "BSET", head_bset, tab_bset, as_bset, comp_default },
+  { 0xffff, 0x003c, 0x00001515, "ORI_CCR", head_ori_ccr, tab_ori_ccr, as_ori_ccr, comp_default },
+  { 0xffff, 0x007c, 0x00001f1f, "ORI_SR", head_ori_sr, tab_ori_sr, as_ori_sr, comp_default },
+  { 0xff00, 0x0000, 0x00000014, "ORI", head_ori, tab_ori, as_ori, comp_default },
+  { 0xffff, 0x023c, 0x00001515, "ANDI_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffff, 0x027c, 0x00001f1f, "ANDI_SR", head_default, tab_andi_sr, as_andi_sr, comp_default },
+  { 0xff00, 0x0200, 0x00000014, "ANDI", head_andi, tab_andi, as_andi, comp_default },
+  { 0xff00, 0x0400, 0x00000015, "SUBI", head_subi, tab_subi, as_subi, comp_default },
+  { 0xff00, 0x0600, 0x00000015, "ADDI", head_addi, tab_addi, as_addi, comp_default },
+  { 0xffff, 0x0a3c, 0x00001515, "EORI_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffff, 0x0a7c, 0x00001f1f, "EORI_SR", head_default, tab_eori_sr, as_eori_sr, comp_default },
+  { 0xff00, 0x0a00, 0x00000014, "EORI", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xff00, 0x0c00, 0x00000014, "CMPI", head_cmpi, tab_cmpi, as_cmpi, comp_default },
+  { 0xff00, 0x0e00, 0x00000000, "MOVES", head_not_implemented, tab_illegal, as_illegal, comp_default },
   
-  { 0xf1c0, 0x1040, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
-  { 0xf000, 0x1000, "MOVE", head_move, tab_move, as_move, comp_default },
-  { 0xf1c0, 0x2040, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
-  { 0xf000, 0x2000, "MOVE", head_move, tab_move, as_move, comp_default },
-  { 0xf1c0, 0x3040, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
-  { 0xf000, 0x3000, "MOVE", head_move, tab_move, as_move, comp_default },
+  { 0xf1c0, 0x1040, 0x00000000, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
+  { 0xf000, 0x1000, 0x00000014, "MOVE", head_move, tab_move, as_move, comp_default },
+  { 0xf1c0, 0x2040, 0x00000000, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
+  { 0xf000, 0x2000, 0x00000014, "MOVE", head_move, tab_move, as_move, comp_default },
+  { 0xf1c0, 0x3040, 0x00000000, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
+  { 0xf000, 0x3000, 0x00000014, "MOVE", head_move, tab_move, as_move, comp_default },
 
-  { 0xf1c0, 0x4180, "CHK", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf1c0, 0x41c0, "LEA", head_lea, tab_lea, as_lea, comp_default },
+  { 0xf1c0, 0x4180, 0x00000014, "CHK", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf1c0, 0x41c0, 0x00000000, "LEA", head_lea, tab_lea, as_lea, comp_default },
 
-  { 0xffc0, 0x40c0, "MOVE_SR", head_move_sr, tab_move_sr, as_move_sr, comp_default },
-  { 0xff00, 0x4000, "NEGX", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xffc0, 0x42c0, "MOVE_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xff00, 0x4200, "CLR", head_clr, tab_clr, as_clr, comp_default },
-  { 0xffc0, 0x44c0, "MOVE_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xff00, 0x4400, "NEG", head_neg, tab_neg, as_neg, comp_default },
-  { 0xffc0, 0x46c0, "MOVE_SR", head_move_sr, tab_move_sr, as_move_sr, comp_default },
-  { 0xff00, 0x4600, "NOT", head_not, tab_not, as_not, comp_default },
+  { 0xffc0, 0x40c0, 0x00001f00, "MOVE_SR", head_move_sr, tab_move_sr, as_move_sr, comp_default },
+  { 0xff00, 0x4000, 0x00000515, "NEGX", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffc0, 0x42c0, 0x00001500, "MOVE_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xff00, 0x4200, 0x00000014, "CLR", head_clr, tab_clr, as_clr, comp_default },
+  { 0xffc0, 0x44c0, 0x00000015, "MOVE_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xff00, 0x4400, 0x00000015, "NEG", head_neg, tab_neg, as_neg, comp_default },
+  { 0xffc0, 0x46c0, 0x00001f1f, "MOVE_SR", head_move_sr, tab_move_sr, as_move_sr, comp_default },
+  { 0xff00, 0x4600, 0x00000014, "NOT", head_not, tab_not, as_not, comp_default },
   
-  { 0xffc0, 0x4800, "NBCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xfff8, 0x4840, "SWAP", head_swap, tab_swap, as_swap, comp_default },
-  { 0xfff8, 0x4848, "BKPT", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xffc0, 0x4840, "PEA", head_pea, tab_pea, as_pea, comp_default },
-  { 0xffb8, 0x4880, "EXT", head_ext, tab_ext, as_ext, comp_default },
-  { 0xfb80, 0x4880, "MOVEM", head_movem, tab_movem, as_movem, comp_default },
+  { 0xffc0, 0x4800, 0x00000015, "NBCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xfff8, 0x4840, 0x00000014, "SWAP", head_swap, tab_swap, as_swap, comp_default },
+  { 0xfff8, 0x4848, 0x00001f00, "BKPT", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffc0, 0x4840, 0x00000000, "PEA", head_pea, tab_pea, as_pea, comp_default },
+  { 0xffb8, 0x4880, 0x00000014, "EXT", head_ext, tab_ext, as_ext, comp_default },
+  { 0xfb80, 0x4880, 0x00000000, "MOVEM", head_movem, tab_movem, as_movem, comp_default },
 
-  { 0xfff0, 0x4e60, "MOVE_USP", head_default, tab_move_usp, as_move_usp, comp_default },
+  { 0xfff0, 0x4e60, 0x00001f00, "MOVE_USP", head_default, tab_move_usp, as_move_usp, comp_default },
   
-  { 0xffff, 0x4e70, "RESET", head_default, tab_reset, as_reset, comp_default },
-  { 0xffff, 0x4e71, "NOP", head_default, tab_nop, as_nop, comp_default },
-  { 0xffff, 0x4e72, "STOP", head_default, tab_stop, as_stop, comp_default },
-  { 0xffff, 0x4e73, "RTE", head_default, tab_rte, as_rte, comp_default },
-  { 0xffff, 0x4e74, "RTD", head_default, tab_rtd, as_rtd, comp_default },
-  { 0xffff, 0x4e75, "RTS", head_default, tab_rts, as_rts, comp_default },
-  { 0xffff, 0x4e77, "RTR", head_default, tab_illegal, as_illegal, comp_default },
-  { 0xfffe, 0x4e7a, "MOVEC", head_default, tab_movec, as_movec, comp_default },
+  { 0xffff, 0x4e70, 0x00001f00, "RESET", head_default, tab_reset, as_reset, comp_default },
+  { 0xffff, 0x4e71, 0x00000000, "NOP", head_default, tab_nop, as_nop, comp_default },
+  { 0xffff, 0x4e72, 0x00001f00, "STOP", head_default, tab_stop, as_stop, comp_default },
+  { 0xffff, 0x4e73, 0x00001f1f, "RTE", head_default, tab_rte, as_rte, comp_default },
+  { 0xffff, 0x4e74, 0x00001f00, "RTD", head_default, tab_rtd, as_rtd, comp_default },
+  { 0xffff, 0x4e75, 0x00001f00, "RTS", head_default, tab_rts, as_rts, comp_default },
+  { 0xffff, 0x4e77, 0x00001f00, "RTR", head_default, tab_illegal, as_illegal, comp_default },
+  { 0xfffe, 0x4e7a, 0x00001f00, "MOVEC", head_default, tab_movec, as_movec, comp_default },
 
-  { 0xffff, 0x4afc, "ILLEGAL", head_default, tab_illegal, as_illegal, comp_default },
-  { 0xffc0, 0x4ac0, "TAS", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xff00, 0x4a00, "TST", head_tst, tab_tst, as_tst, comp_default },
-  { 0xfff0, 0x4e40, "TRAP", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xfff8, 0x4e50, "LINK", head_link, tab_link, as_link, comp_default },
-  { 0xfff8, 0x4e58, "UNLK", head_unlk, tab_unlk, as_unlk, comp_default },
-  { 0xffff, 0x4e76, "TRAPV", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xffc0, 0x4e80, "JSR", head_jsr, tab_jsr, as_jsr, comp_default },
-  { 0xffc0, 0x4ec0, "JMP", head_jmp, tab_jmp, as_jmp, comp_default },
+  { 0xffff, 0x4afc, 0x00001f00, "ILLEGAL", head_default, tab_illegal, as_illegal, comp_default },
+  { 0xffc0, 0x4ac0, 0x00000014, "TAS", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xff00, 0x4a00, 0x00000014, "TST", head_tst, tab_tst, as_tst, comp_default },
+  { 0xfff0, 0x4e40, 0x00001f00, "TRAP", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xfff8, 0x4e50, 0x00000000, "LINK", head_link, tab_link, as_link, comp_default },
+  { 0xfff8, 0x4e58, 0x00000000, "UNLK", head_unlk, tab_unlk, as_unlk, comp_default },
+  { 0xffff, 0x4e76, 0x00001f00, "TRAPV", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffc0, 0x4e80, 0x00001f00, "JSR", head_jsr, tab_jsr, as_jsr, comp_default },
+  { 0xffc0, 0x4ec0, 0x00001f00, "JMP", head_jmp, tab_jmp, as_jmp, comp_default },
 
-  { 0xf0f8, 0x50c8, "DB", head_default, tab_dbcc, as_dbcc, comp_default },
-  { 0xf0c0, 0x50c0, "S", head_scc, tab_scc, as_scc, comp_default },
-  { 0xf100, 0x5000, "ADDQ", head_addq, tab_addq, as_addq, comp_default },
-  { 0xf100, 0x5100, "SUBQ", head_subq, tab_subq, as_subq, comp_default },
+  { 0xf0f8, 0x50c8, 0x00001f00, "DB", head_default, tab_dbcc, as_dbcc, comp_default },
+  { 0xf0c0, 0x50c0, 0x00001400, "S", head_scc, tab_scc, as_scc, comp_default },
+  { 0xf100, 0x5000, 0x00000015, "ADDQ", head_addq, tab_addq, as_addq, comp_default },
+  { 0xf100, 0x5100, 0x00000015, "SUBQ", head_subq, tab_subq, as_subq, comp_default },
   
-  { 0xff00, 0x6000, "BRA", head_default, tab_bra, as_bra, comp_default },
-  { 0xff00, 0x6100, "BSR", head_default, tab_bsr, as_bsr, comp_default },
-  { 0xf000, 0x6000, "B", head_default, tab_bcc, as_bcc, comp_default },
+  { 0xff00, 0x6000, 0x00001f00, "BRA", head_default, tab_bra, as_bra, comp_default },
+  { 0xff00, 0x6100, 0x00001f00, "BSR", head_default, tab_bsr, as_bsr, comp_default },
+  { 0xf000, 0x6000, 0x00001f00, "B", head_default, tab_bcc, as_bcc, comp_default },
 
-  { 0xf000, 0x7000, "MOVEQ", head_moveq, tab_moveq, as_moveq, comp_default },
+  { 0xf000, 0x7000, 0x00000014, "MOVEQ", head_moveq, tab_moveq, as_moveq, comp_default },
 
-  { 0xf1c0, 0x80c0, "DIVU", head_divu, tab_divu, as_divu, comp_default },
-  { 0xf1f0, 0x8100, "SBCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf1c0, 0x81c0, "DIVS", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf000, 0x8000, "OR", head_or, tab_or, as_or, comp_default },
+  { 0xf1c0, 0x80c0, 0x00000014, "DIVU", head_divu, tab_divu, as_divu, comp_default },
+  { 0xf1f0, 0x8100, 0x00000015, "SBCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf1c0, 0x81c0, 0x00000014, "DIVS", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf000, 0x8000, 0x00000014, "OR", head_or, tab_or, as_or, comp_default },
 
-  { 0xf0c0, 0x90c0, "SUBA", head_suba, tab_suba, as_suba, comp_default },
-  { 0xf130, 0x9100, "SUBX", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf000, 0x9000, "SUB", head_sub, tab_sub, as_sub, comp_default },
+  { 0xf0c0, 0x90c0, 0x00000000, "SUBA", head_suba, tab_suba, as_suba, comp_default },
+  { 0xf130, 0x9100, 0x00000515, "SUBX", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf000, 0x9000, 0x00000015, "SUB", head_sub, tab_sub, as_sub, comp_default },
 
-  { 0xf000, 0xa000, "LINE A", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf000, 0xa000, 0x00001f00, "LINE A", head_not_implemented, tab_illegal, as_illegal, comp_default },
 
-  { 0xf0c0, 0xb0c0, "CMPA", head_cmpa, tab_cmpa, as_cmpa, comp_default },
-  { 0xf100, 0xb000, "CMP", head_cmp, tab_cmp, as_cmp, comp_default },
-  { 0xf138, 0xb108, "CMPM", head_cmpm, tab_cmpm, as_cmpm, comp_default },
-  { 0xf100, 0xb100, "EOR", head_eor, tab_eor, as_eor, comp_default },
+  { 0xf0c0, 0xb0c0, 0x00000014, "CMPA", head_cmpa, tab_cmpa, as_cmpa, comp_default },
+  { 0xf100, 0xb000, 0x00000014, "CMP", head_cmp, tab_cmp, as_cmp, comp_default },
+  { 0xf138, 0xb108, 0x00000014, "CMPM", head_cmpm, tab_cmpm, as_cmpm, comp_default },
+  { 0xf100, 0xb100, 0x00000014, "EOR", head_eor, tab_eor, as_eor, comp_default },
 
-  { 0xf1c0, 0xc0c0, "MULU", head_mulu, tab_mulu, as_mulu, comp_default },
-  { 0xf1f0, 0xc100, "ABCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf1f0, 0xc140, "EXG", head_exg, tab_exg, as_exg, comp_default },
-  { 0xf1f8, 0xc188, "EXG", head_exg, tab_exg, as_exg, comp_default },
-  { 0xf1c0, 0xc1c0, "MULS", head_muls, tab_muls, as_muls, comp_default },
-  { 0xf000, 0xc000, "AND", head_and, tab_and, as_and, comp_default },
+  { 0xf1c0, 0xc0c0, 0x00000014, "MULU", head_mulu, tab_mulu, as_mulu, comp_default },
+  { 0xf1f0, 0xc100, 0x00000015, "ABCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf1f0, 0xc140, 0x00000000, "EXG", head_exg, tab_exg, as_exg, comp_default },
+  { 0xf1f8, 0xc188, 0x00000000, "EXG", head_exg, tab_exg, as_exg, comp_default },
+  { 0xf1c0, 0xc1c0, 0x00000014, "MULS", head_muls, tab_muls, as_muls, comp_default },
+  { 0xf000, 0xc000, 0x00000014, "AND", head_and, tab_and, as_and, comp_default },
 
-  { 0xf0c0, 0xd0c0, "ADDA", head_adda, tab_adda, as_adda, comp_default },
-  { 0xf130, 0xd100, "ADDX", head_addx, tab_addx, as_addx, comp_default },
-  { 0xf000, 0xd000, "ADD", head_add, tab_add, as_add, comp_default },
+  { 0xf0c0, 0xd0c0, 0x00000000, "ADDA", head_adda, tab_adda, as_adda, comp_default },
+  { 0xf130, 0xd100, 0x00000515, "ADDX", head_addx, tab_addx, as_addx, comp_default },
+  { 0xf000, 0xd000, 0x00000015, "ADD", head_add, tab_add, as_add, comp_default },
 
-  { 0xffc0, 0xe0c0, "ASR", head_shift, tab_shift_mem, as_asr_mem, comp_default },
-  { 0xffc0, 0xe1c0, "ASL", head_shift, tab_shift_mem, as_asl_mem, comp_default },
-  { 0xffc0, 0xe2c0, "LSR", head_shift, tab_shift_mem, as_lsr_mem, comp_default },
-  { 0xffc0, 0xe3c0, "LSL", head_shift, tab_shift_mem, as_lsl_mem, comp_default },
-  { 0xffc0, 0xe4c0, "ROXR", head_shift, tab_shift_mem, as_illegal, comp_default },
-  { 0xffc0, 0xe5c0, "ROXL", head_shift, tab_shift_mem, as_illegal, comp_default },
-  { 0xffc0, 0xe7c0, "ROR", head_shift, tab_shift_mem, as_ror_mem, comp_default },
-  { 0xffc0, 0xe7c0, "ROL", head_shift, tab_shift_mem, as_rol_mem, comp_default },
-  { 0xf0c0, 0xe0c0, "UNKNOWN", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf138, 0xe000, "ASR", head_shift, tab_shift_imm, as_asr_imm, comp_default },
-  { 0xf138, 0xe100, "ASL", head_shift, tab_shift_imm, as_lsl_imm, comp_default }, /**/
-  { 0xf138, 0xe008, "LSR", head_shift, tab_shift_imm, as_lsr_imm, comp_default },
-  { 0xf138, 0xe108, "LSL", head_shift, tab_shift_imm, as_lsl_imm, comp_default },
-  { 0xf138, 0xe010, "ROXR", head_shift, tab_shift_imm, as_illegal, comp_default },
-  { 0xf138, 0xe110, "ROXL", head_shift, tab_shift_imm, as_illegal, comp_default },
-  { 0xf138, 0xe018, "ROR", head_shift, tab_shift_imm, as_ror_imm, comp_default },
-  { 0xf138, 0xe118, "ROL", head_shift, tab_shift_imm, as_rol_imm, comp_default },
-  { 0xf138, 0xe020, "ASR", head_shift, tab_shift_reg, as_asr_reg, comp_default },
-  { 0xf138, 0xe120, "ASL", head_shift, tab_shift_reg, as_lsl_reg, comp_default }, /**/
-  { 0xf138, 0xe028, "LSR", head_shift, tab_shift_reg, as_lsr_reg, comp_default },
-  { 0xf138, 0xe128, "LSL", head_shift, tab_shift_reg, as_lsl_reg, comp_default },
-  { 0xf138, 0xe030, "ROXR", head_shift, tab_shift_reg, as_illegal, comp_default },
-  { 0xf138, 0xe130, "ROXL", head_shift, tab_shift_reg, as_illegal, comp_default },
-  { 0xf138, 0xe038, "ROR", head_shift, tab_shift_reg, as_ror_reg, comp_default },
-  { 0xf138, 0xe138, "ROL", head_shift, tab_shift_reg, as_rol_reg, comp_default },
+  { 0xffc0, 0xe0c0, 0x00000015, "ASR", head_shift, tab_shift_mem, as_asr_mem, comp_default },
+  { 0xffc0, 0xe1c0, 0x00000015, "ASL", head_shift, tab_shift_mem, as_asl_mem, comp_default },
+  { 0xffc0, 0xe2c0, 0x00000015, "LSR", head_shift, tab_shift_mem, as_lsr_mem, comp_default },
+  { 0xffc0, 0xe3c0, 0x00000015, "LSL", head_shift, tab_shift_mem, as_lsl_mem, comp_default },
+  { 0xffc0, 0xe4c0, 0x00000515, "ROXR", head_shift, tab_shift_mem, as_illegal, comp_default },
+  { 0xffc0, 0xe5c0, 0x00000515, "ROXL", head_shift, tab_shift_mem, as_illegal, comp_default },
+  { 0xffc0, 0xe7c0, 0x00000014, "ROR", head_shift, tab_shift_mem, as_ror_mem, comp_default },
+  { 0xffc0, 0xe7c0, 0x00000014, "ROL", head_shift, tab_shift_mem, as_rol_mem, comp_default },
+  { 0xf0c0, 0xe0c0, 0x00001f00, "UNKNOWN", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf138, 0xe000, 0x00000015, "ASR", head_shift, tab_shift_imm, as_asr_imm, comp_default },
+  { 0xf138, 0xe100, 0x00000015, "ASL", head_shift, tab_shift_imm, as_lsl_imm, comp_default }, /**/
+  { 0xf138, 0xe008, 0x00000015, "LSR", head_shift, tab_shift_imm, as_lsr_imm, comp_default },
+  { 0xf138, 0xe108, 0x00000015, "LSL", head_shift, tab_shift_imm, as_lsl_imm, comp_default },
+  { 0xf138, 0xe010, 0x00000515, "ROXR", head_shift, tab_shift_imm, as_illegal, comp_default },
+  { 0xf138, 0xe110, 0x00000515, "ROXL", head_shift, tab_shift_imm, as_illegal, comp_default },
+  { 0xf138, 0xe018, 0x00000014, "ROR", head_shift, tab_shift_imm, as_ror_imm, comp_default },
+  { 0xf138, 0xe118, 0x00000014, "ROL", head_shift, tab_shift_imm, as_rol_imm, comp_default },
+  { 0xf138, 0xe020, 0x00000015, "ASR", head_shift, tab_shift_reg, as_asr_reg, comp_default },
+  { 0xf138, 0xe120, 0x00000015, "ASL", head_shift, tab_shift_reg, as_lsl_reg, comp_default }, /**/
+  { 0xf138, 0xe028, 0x00000015, "LSR", head_shift, tab_shift_reg, as_lsr_reg, comp_default },
+  { 0xf138, 0xe128, 0x00000015, "LSL", head_shift, tab_shift_reg, as_lsl_reg, comp_default },
+  { 0xf138, 0xe030, 0x00000515, "ROXR", head_shift, tab_shift_reg, as_illegal, comp_default },
+  { 0xf138, 0xe130, 0x00000515, "ROXL", head_shift, tab_shift_reg, as_illegal, comp_default },
+  { 0xf138, 0xe038, 0x00000014, "ROR", head_shift, tab_shift_reg, as_ror_reg, comp_default },
+  { 0xf138, 0xe138, 0x00000014, "ROL", head_shift, tab_shift_reg, as_rol_reg, comp_default },
 
-  { 0xf000, 0xf000, "LINE F", head_line_f, tab_line_f, as_line_f, comp_default },
+  { 0xf000, 0xf000, 0x00001f00, "LINE F", head_line_f, tab_line_f, as_line_f, comp_default },
 
-  { 0x0000, 0x0000, "UNKNOWN", head_not_implemented, tab_illegal, as_illegal, comp_default }
+  { 0x0000, 0x0000, 0x00001f00, "UNKNOWN", head_not_implemented, tab_illegal, as_illegal, comp_default }
 };
 
 const char *compiler_head =
@@ -3593,8 +3611,8 @@ void make_opcode_table(FILE *fp, U32 start, U32 end)
       ;
     fprintf(fp, "	.long	");
     opcodes[i].tab_entry(fp, opcode, opcodes[i].mnemonic);
-    fprintf(fp, ", opcode_mnemonic_%d\t! 0x%04x: %s\n", i,
-	    opcode, opcodes[i].mnemonic);
+    fprintf(fp, ", 0x%08x, opcode_mnemonic_%d\t! 0x%04x: %s\n",
+	    opcodes[i].sr_magic, i, opcode, opcodes[i].mnemonic);
   }
   fprintf(fp, "\n\n");
   fprintf(fp, "	.end\n\n");
