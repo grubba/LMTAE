@@ -1,9 +1,12 @@
 /*
- * $Id: compglue.c,v 1.11 1996/08/04 17:21:01 grubba Exp $
+ * $Id: compglue.c,v 1.12 1996/08/10 18:19:11 grubba Exp $
  *
  * Help functions for the M68000 to Sparc compiler.
  *
  * $Log: compglue.c,v $
+ * Revision 1.11  1996/08/04 17:21:01  grubba
+ * Now skips to next opcode in SR scan.
+ *
  * Revision 1.10  1996/08/04 16:25:11  grubba
  * Now does the SR scans.
  * Does not yet skip past the opcode arguments in the SR scan.
@@ -438,13 +441,21 @@ U32 compile(struct code_info *ci)
 
   /* Reverse SR scan pass */
 
+  DPRINTF(("Needed : Changed - Needed : Needed : Magic\n"));
+
   while ((sr_magic_pos--) != sr_magic_start) {
     U32 sr_magic = (*sr_magic_pos);
 
-    (*sr_magic_pos) &= sr_mask;
+    DPRINTF(("0x%04x :  0x%04x - 0x%04x : 0x%04x : 0x%04x\n",
+	     sr_mask, (sr_magic & 0xffff), (sr_magic >> 16),
+	     ((sr_mask & ~sr_magic) | (sr_magic>>16)),
+	     (sr_magic & sr_mask)));
+
+    *sr_magic_pos = sr_magic & sr_mask;
     sr_mask &= ~sr_magic;
     sr_mask |= (sr_magic>>16);
   }
+  sr_magic_pos++;	/* Compensation for loop going past start */
 
   code = code_start;
   pc = ci->maddr>>1;
@@ -828,9 +839,33 @@ U32 compile(struct code_info *ci)
       copy_template(&code, compiler_tab[opcode].template);
     }
 
+    /* SR post instruction fixup */
+#if 0
     if (flags & TEF_FIX_SR) {
       copy_template(&code, s_fix_sr);
     }
+#else /* !0 */
+    if ((sr_mask = *(sr_magic_pos++))) {
+      int post_sr_kind = compiler_tab[opcode].sr_magic_reserved;
+
+#ifndef NDEBUG
+      if ((flags & TEF_FIX_SR) && (post_sr_kind != 1)) {
+	printf("Opcode \"%s\": Bad post_sr_kind (0x%02x). Forceing type 0x01!\n",
+	       compiler_tab[opcode].mnemonic, post_sr_kind);
+	post_sr_kind = 1;
+      }
+#endif /* NDEBUG */
+      DPRINTF(("<%04x>", sr_mask));
+      if (post_sr_kind) {
+	copy_template(&code, s_sr_post_tab[post_sr_kind]);
+      }
+#ifdef DEBUG
+    } else 
+      /* if (compiler_tab[opcode].sr_magic_reserved) */ {
+      DPRINTF(("<NOCC>"));
+#endif
+    }
+#endif /* !0 */
 
     if (flags & TEF_WRITE_BACK) {
       if (flags & TEF_MOVEM) {
