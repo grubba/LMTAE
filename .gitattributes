@@ -1,0 +1,27 @@
+[attr]binary -text -crlf -diff -ident
+* text ident
+
+# Handling of foreign (ie CVS) identifiers.
+#
+[attr]foreign_ident -ident block_commit=Remove-foreign_ident-attribute-before-commit.
+# Files containing CVS ids follow.
+# Remove the corresponding line before committing
+# changes to these files.
+/Makefile foreign_ident
+/citest.c foreign_ident
+/codeinfo.c foreign_ident
+/codeinfo.h foreign_ident
+/compgen.c foreign_ident
+/compglue.c foreign_ident
+/compiler.h foreign_ident
+/hardware.c foreign_ident
+/m68k.h foreign_ident
+/m68k.txt foreign_ident
+/memgen.c foreign_ident
+/recomp.c foreign_ident
+/recomp.h foreign_ident
+/rtest.c foreign_ident
+/sanity.c foreign_ident
+/sparc.h foreign_ident
+/templates/glue.gasp foreign_ident
+/templates/glue.h foreign_ident

@@ -1,0 +1,424 @@
+	!
+	! $Id: glue.gasp,v 1.1.1.1 1996/06/30 23:51:55 grubba Exp $
+	!
+	! Assembler template functions for the M68000 to Sparc recompiler.
+	!
+	! $Log: glue.gasp,v $
+	! Revision 1.2  1996/06/30 23:04:32  grubba
+	! SR wasn't saved in some places.
+	!
+	! Revision 1.1  1996/06/01 09:31:29  grubba
+	! Initial revision
+	!
+	!
+
+	!
+	! Register definitions
+	!
+regs	.reg	(i0)
+mem	.reg	(i1)
+vecs	.reg	(i2)
+pc	.reg	(l7)
+sr	.reg	(l6)
+ea	.reg	(l5)
+acc0	.reg	(l4)
+acc1	.reg	(l3)
+
+
+	!
+	! Offsets
+	!
+_D0	.reg	(0x00)
+_A0	.reg	(0x20)
+_A7	.reg	(0x3c)
+_USP	.reg	(0x40)
+_SSP	.reg	(0x44)
+_SR	.reg	(0x48)
+_PC	.reg	(0x4c)
+_VBR	.reg	(0x50)
+
+	!
+	! Vectors
+	!
+_VEC_LOAD_LONG	.reg	(0x0000)
+_VEC_LOAD_WORD	.reg	(0x0004)
+_VEC_LOAD_BYTE	.reg	(0x0008)
+_VEC_STORE_LONG	.reg	(0x000c)
+_VEC_STORE_WORD	.reg	(0x0010)
+_VEC_STORE_BYTE	.reg	(0x0014)
+_VEC_RESET	.reg	(0x0018)
+
+	.extern	raise_exception
+
+	.text
+
+	!
+	! Initializing code
+	!
+	! Fetches LOW, HIGH, SR, PC, and initializes TOP
+	!
+	.globl	s_pre_amble
+s_pre_amble:
+	save	%sp, -112, %sp
+	sethi	%hi(s_vec_tab), %vecs
+	ld	[ %regs + _SR ], %sr
+	or	%lo(s_vec_tab), %vecs, %vecs
+	ld	[ %regs + _PC ], %pc
+	.long	0
+
+
+	!
+	! s_fix_sr()
+	!
+	.globl	s_fix_sr
+s_fix_sr:
+	! Fix the SR
+	and	-32, %sr, %sr
+	! N => !Z
+	bneg,a	0f
+	or	0x08, %sr, %sr
+	bz,a	0f
+	or	0x04, %sr, %sr
+	! C => V?	Probably not :-(
+0:	bcs,a	1f
+	or	0x11, %sr, %sr
+1:	bvs,a	0f
+	or	0x02, %sr, %sr
+0:
+	.long	0
+	
+
+	!
+	! s_raise_exception (vector:%o2)
+	!
+	! Saves PC and SR, and calls raise_exception
+	!
+	.globl	s_raise_exception
+s_raise_exception:
+	sethi	%hi(raise_exception), %o7
+	st	%pc, [ %regs + _PC ]
+	or	%lo(raise_exception), %o7, %o7
+	call	%o7
+	st	%sr, [ %regs + _SR ]
+	.long	0
+
+!!!!!!
+	!
+	! s_mem_load0 (addr:%ea) => val:%acc0
+	!
+	.extern load_hw
+	.globl	s_mem_load0
+s_mem_load0:
+	ld	[ %vecs + _VEC_LOAD_LONG ], %o7
+	call	%o7
+	mov	%ea, %o0
+	mov	%o0, %acc0
+	.long	0
+
+		
+	!
+	! s_mem_load_short0 (addr:%ea) => val:%acc0
+	!
+	.extern load_hw_short
+	.globl	s_mem_load_short0
+s_mem_load_short0:
+	ld	[ %vecs + _VEC_LOAD_WORD ], %o7
+	call	%o7
+	mov	%ea, %o0
+	mov	%o0, %acc0
+	.long 0
+		
+	!
+	! s_mem_load_byte0 (addr:%ea) => val:%acc0
+	!
+	.extern load_hw_byte
+	.globl	s_mem_load_byte0
+s_mem_load_byte0:
+	ld	[ %vecs + _VEC_LOAD_BYTE ], %o7
+	call	%o7
+	mov	%ea, %o0
+	mov	%o0, %acc0
+	.long	0		
+
+
+!!!!!!
+	!
+	! s_mem_load1 (addr:%ea) => val:%acc1
+	!
+	.extern load_hw
+	.globl	s_mem_load1
+s_mem_load1:
+	ld	[ %vecs + _VEC_LOAD_LONG ], %o7
+	call	%o7
+	mov	%ea, %o0
+	mov	%o0, %acc1
+	.long	0
+
+		
+	!
+	! s_mem_load_short1 (addr:%ea) => val:%acc1
+	!
+	.extern load_hw_short
+	.globl	s_mem_load_short1
+s_mem_load_short1:
+	ld	[ %vecs + _VEC_LOAD_WORD ], %o7
+	call	%o7
+	mov	%ea, %o0
+	mov	%o0, %acc1
+	.long 0
+		
+	!
+	! s_mem_load_byte1 (addr:%ea) => val:%acc1
+	!
+	.extern load_hw_byte
+	.globl	s_mem_load_byte1
+s_mem_load_byte1:
+	ld	[ %vecs + _VEC_LOAD_BYTE ], %o7
+	call	%o7
+	mov	%ea, %o0
+	mov	%o0, %acc1
+	.long	0		
+
+!!!!!!
+
+	!
+	! s_clobber (dest:%ea, val:%acc0)
+	!
+	.extern	clobber_code
+	.extern store_hw
+	.globl	s_clobber
+s_clobber:
+	ld	[ %vecs + _VEC_STORE_LONG ], %o7
+	mov	%ea, %o0
+	call	%o7
+	mov	%acc0, %o1
+	.long	0
+
+
+	!
+	! s_clobber_short (dest:%l5, val:%l4)
+	!
+	.extern	clobber_code_short
+	.extern store_hw_short
+	.globl	s_clobber_short
+s_clobber_short:
+	ld	[ %vecs + _VEC_STORE_WORD ], %o7
+	mov	%ea, %o0
+	call	%o7
+	mov	%acc0, %o1
+	.long	0
+
+
+	!
+	! s_clobber_byte (dest:%l5, val:%l4)
+	!
+	.extern	clobber_code_short
+	.extern store_hw_byte
+	.globl	s_clobber_byte
+s_clobber_byte:
+	ld	[ %vecs + _VEC_STORE_BYTE ], %o7
+	mov	%ea, %o0
+	call	%o7
+	mov	%acc0, %o1
+	.long	0
+
+!!!!!!
+
+	!
+	! s_push_o0 (val:%o0)
+	!
+	.globl	s_push_o0
+s_push_o0:
+	mov	%o0, %o1
+	ld	[ %regs + _A7 ], %o0
+	add	-4, %o0, %o0
+	ld	[ %vecs + _VEC_STORE_LONG ], %o7
+	call	%o7
+	st	%o0, [%regs + _A7 ]
+	.long	0
+
+
+!!!!!!!!
+	!
+	! s_supervisor
+	!
+	.globl	s_supervisor
+s_supervisor:	
+	! Were we in supervisormode before?
+	sethi	%hi(0x2000), %o0
+	btst	%sr, %o0
+	bne,a	0f
+	nop
+	! NO! Permission Violation Exception
+	! Save the old SR
+	mov	%sr, %acc1
+	! Set supervisor bit
+	or	%sr, %o0, %sr
+	! Flip stacks
+	ld	[ %regs + _A7 ], %o0
+	st	%o0, [ %regs + _USP ]
+	ld	[ %regs + _SSP ], %o0
+	st	%o0, [ %regs + _A7 ]
+	! Push format/offset on stack
+	add	-2, %o0, %o0
+	sth	%acc0, [ %mem + %o0 ]
+	! Push PC on stack
+	add	-2, %o0, %o0
+	sth	%pc, [ %mem + %o0 ]
+	srl	%pc, 0x10, %o1
+	add	-2, %o0, %o0
+	sth	%o1, [ %mem + %o0 ]
+	! Push old sr on stack
+	add	-2, %o0, %o0
+	sth	%acc1, [ %mem + %o0 ]
+	! Store the new stack pointer
+	st	%o0, [ %regs + _A7 ]
+	! Store PC
+	st	%pc, [ %regs + _PC ]
+	! Store the new SR
+	st	%sr, [ %regs + _SR ]
+	! Fetch VBR
+	ld	[ %regs + _VBR ], %o0
+	add	0x20, %o0, %o0		! Add 8*4
+	! Fetch the Vector
+	ld	[ %mem + %o0 ], %i0
+	ret
+	restore
+	! Continue with the operation
+0:	
+	.long	0
+
+
+
+
+	!
+	! Normal code beyond this point
+	!
+
+
+	!
+	! Jump Vector table
+	!
+	.extern	reset_hw
+s_vec_tab:
+	.long	s_load_long
+	.long	s_load_word
+	.long	s_load_byte
+	.long	s_store_long
+	.long	s_store_word
+	.long	s_store_byte
+	.long	reset_hw
+	.long	0
+
+
+	!
+	! Load
+	!
+
+	!
+	! Memory bus access
+	!
+s_load_long:
+	.extern	load_hw
+	sethi	%hi(0x00f00000), %o1
+	cmp	%o0, %o1
+	bcs,a	0f
+	sethi	%hi(0x00a00000), %o1
+	sethi	%hi(0x01000000), %o1
+0:	cmp	%o0, %o1
+	bcc,a	load_hw
+	nop
+	lduh	[ %mem + %o0 ], %o1
+	add	2, %o0, %o0
+	sll	%o1, 0x10, %o1
+	lduh	[ %mem + %o0 ], %o0
+	retl
+	or	%o0, %o1, %o0
+
+
+	!
+	! Memory bus access
+	!
+s_load_word:
+	.extern	load_hw_short
+	sethi	%hi(0x00f00000), %o1
+	cmp	%o0, %o1
+	bcs,a	0f
+	sethi	%hi(0x00a00000), %o1
+	sethi	%hi(0x01000000), %o1
+0:	cmp	%o0, %o1
+	bcc,a	load_hw_short
+	nop
+	retl
+	ldsh	[ %mem + %o0 ], %o0
+
+	!
+	! Memory bus access
+	!
+s_load_byte:
+	.extern	load_hw_byte
+	sethi	%hi(0x00f00000), %o1
+	cmp	%o0, %o1
+	bcs,a	0f
+	sethi	%hi(0x00a00000), %o1
+	sethi	%hi(0x01000000), %o1
+0:	cmp	%o0, %o1
+	bcc,a	load_hw_byte
+	nop
+	retl
+	ldsb	[ %mem + %o0 ], %o0
+
+	!
+	! Store
+	!
+
+	!
+	! Memory bus access
+	!
+s_store_long:
+	.extern	store_hw
+	sethi	%hi(0x00a00000), %o2
+	cmp	%o0, %o2
+	bcc	store_hw
+	! FIXME: Should check for clobbered code here!
+	add	2, %o0, %o3		! DELAY Slot
+	sth	%o1, [ %mem + %o3 ]
+	srl	%o1, 0x10, %o4
+	retl
+	sth	%o4, [ %mem + %o0 ]
+
+	!
+	! Memory bus access
+	!
+s_store_word:
+	.extern	store_hw_short
+	sethi	%hi(0x00a00000), %o2
+	cmp	%o0, %o2
+	bcc,a	store_hw_short
+	nop
+	! FIXME: Should check for clobbered code here!
+	retl
+	sth	%o1, [ %mem + %o0 ]
+
+	!
+	! Memory bus access
+	!
+s_store_byte:
+	.extern	store_hw_byte
+	sethi	%hi(0x00a00000), %o2
+	cmp	%o0, %o2
+	bcc,a	store_hw_byte
+	nop
+	! FIXME: Should check for clobbered code here!
+	retl
+	stb	%o1, [ %mem + %o0 ]
+
+
+
+
+
+
+	.end
+
+
+

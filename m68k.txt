@@ -1,0 +1,169 @@
+#
+# $Id: m68k.txt,v 1.1.1.1 1996/06/30 23:51:51 grubba Exp $
+#
+# M68000 opcode format
+#
+# $Log: m68k.txt,v $
+# Revision 1.2  1996/05/12 16:46:20  grubba
+# Reorderd some of the opcodes to mirror the order in compgen.
+#
+# Revision 1.1  1996/05/08 07:04:20  grubba
+# Initial revision
+#
+#
+
+#    opcode
+#   RRRMMMmmmrrr
+#      xss
+0000xxx10s001yyy D	MOVEP.s (D, Ay), Dx
+0000xxx11s001yyy D	MOVEP.s Dx, (D, Ay)
+
+0000nnn100mmmrrr	BTST Dn, ea
+0000nnn101mmmrrr	BCHG Dn, ea
+0000nnn110mmmrrr	BCLR Dn, ea
+0000nnn111mmmrrr	BSET Dn, ea
+
+0000100000mmmrrr N	BTST #N, ea
+0000100001mmmrrr N	BCHG #N, ea
+0000100010mmmrrr N	BCLR #N, ea
+0000100011mmmrrr N	BSET #N, ea
+
+0000000000111100 D	ORI.B #D, CCR
+0000000001111100 D	ORI.W #D, SR
+00000000ssmmmrrr D	ORI.s #D, ea
+
+0000001000111100 D	ANDI.B #D, CCR
+0000001001111100 D	ANDI.W #D, SR
+00000010ssmmmrrr D	ANDI.s #D, ea
+
+00000100ssmmmrrr D	SUBI.s #D, ea
+00000110ssmmmrrr D	ADDI.s #D, ea
+
+0000101000111100 D	EORI.B #D, CCR
+0000101001111100 D	EORI.W #D, SR
+00001010ssmmmrrr D	EORI.s #D, ea
+
+00001100ssmmmrrr D	CMPI.s #D, ea
+00001110ssmmmrrr nnnn000000000000 MOVES.s ea, Rn
+00001110ssmmmrrr nnnn100000000000 MOVES.s Rn, ea
+
+0001nnn001mmmrrr	MOVEA.B ea, An
+0001RRRMMMmmmrrr	MOVE.B ea, EA
+0010nnn001mmmrrr	MOVEA.W ea, An
+0010RRRMMMmmmrrr	MOVE.W ea, EA
+0011nnn001mmmrrr	MOVEA.L ea, An
+0011RRRMMMmmmrrr	MOVE.L ea, EA
+
+0100nnn110mmmrrr	CHK ea, Dn
+0100nnn111mmmrrr	LEA ea, An
+
+0100000011mmmrrr	MOVE SR, ea
+01000000ssmmmrrr	NEGX.s ea
+0100001011mmmrrr	MOVE CCR, ea
+01000010ssmmmrrr	CLR.s ea
+0100010011mmmrrr	MOVE ea, CCR
+01000100ssmmmrrr	NEG.s ea
+0100011011mmmrrr	MOVE ea, SR
+01000110ssmmmrrr	NOT.s ea
+
+0100100000mmmrrr	NBCD.B ea
+0100100001mmmrrr	PEA ea
+
+010010001smmmrrr M	MOVEM.s M, ea
+010011001smmmrrr M	MOVEM.s ea, M
+
+0100111001100nnn	MOVE An, USP
+0100111001101nnn	MOVE USP, An
+
+0100111001110000	RESET
+0100111001110001	NOP
+0100111001110010 D	STOP #D
+0100111001110011	RTE
+0100111001110100 D	RTD #D
+0100111001110101	RTS
+0100111001110111	RTR
+
+0100111001111010 nnnncccccccccccc MOVEC Rc, Rn
+0100111001111011 nnnncccccccccccc MOVEC Rn, Rc
+
+0100100001000nnn	SWAP Dn
+0100100001001nnn	BKPT #n
+0100100010000nnn	EXT.W Dn
+0100100011000nnn	EXT.L Dn
+
+0100101011111100	ILLEGAL
+0100101011mmmrrr	TAS.B ea
+01001010ssmmmrrr	TST.s ea
+010011100100dddd	TRAP #d
+0100111001010nnn D	LINK An, #D
+0100111001011nnn	UNLK An
+0100111001110110	TRAPV
+0100111010mmmrrr	JSR ea
+0100111011mmmrrr	JMP ea
+
+0101cccc11001nnn D	DBcc Dn, PC+D
+0101cccc11mmmrrr	Scc.B ea
+0101ddd0ssmmmrrr	ADDQ.s #d, ea
+0101ddd1ssmmmrrr	SUBQ.s #d, ea
+
+0110000000000000 D	BRA PC+D	/* BT */
+01100000dddddddd	BRA PC+d	/* BT */
+0110000100000000 D	BSR PC+D	/* BF */
+01100001dddddddd	BSR PC+d	/* BF */
+0110cccc00000000 D	Bcc PC+D
+0110ccccdddddddd	Bcc PC+d
+
+0111nnn0dddddddd	MOVEQ #d, Dn
+
+1000nnn011mmmrrr	DIVU.W ea, Dn
+1000nnn0ssmmmrrr	OR.s ea, Dn
+1000yyy100000xxx	SBCD Dx, Dy
+1000yyy100001xxx	SBCD -(Ax), -(Ay)
+1000nnn111mmmrrr	DIVS.W ea, Dn
+1000nnn1ssmmmrrr	OR.s Dn, ea
+
+1001nnns11mmmrrr	SUBA.s ea, An
+1001nnn0ssmmmrrr	SUB.s ea, Dn
+1001yyy1ss000xxx	SUBX.s Dx, Dy
+1001yyy1ss001xxx	SUBX.s -(Ax), -(Ay)
+1001nnn1ssmmmrrr	SUB.s Dn, ea
+
+1010xxxxxxxxxxxx	LINE A
+
+1011nnn011mmmrrr	CMPA.W ea, An
+1011nnn0ssmmmrrr	CMP.s ea, Dn
+1011nnn111mmmrrr	CMPA.L ea, An
+1011xxx1ss001yyy	CMPM.s (Ay)+, (Ax)+
+1011nnn1ssmmmrrr	EOR.s Dn, ea
+
+1100nnn011mmmrrr	MULU.W ea, Dn
+1100xxx0ssmmmrrr	AND.s ea, Dn
+1100xxx100000yyy	ABCD.B Dy, Dx
+1100xxx100001yyy	ABCD.B -(Ay), -(Ax)
+1100xxx101000yyy	EXG Dy, Dx
+1100xxx101001yyy	EXG Ay, Ax
+1100xxx110000yyy	EXG Ay, Dx
+1100nnn111mmmrrr	MULS.W ea, Dn
+1100xxx1ssmmmrrr	AND.s Dn, ea
+
+1101nnn011mmmrrr	ADDA.W ea, An
+1101nnn0ssmmmrrr	ADD.s ea, Dn
+1101nnn111mmmrrr	ADDA.L ea, An
+1101xxx1ss000yyy	ADDX.s Dy, Dx
+1101xxx1ss001yyy	ADDX.s -(Ay), -(Ax)
+1101nnn1ssmmmrrr	ADD.s Dn, ea
+
+1110000d11mmmrrr	ASd #1, ea
+1110001d11mmmrrr	LSd #1, ea
+1110010d11mmmrrr	ROXd #1, ea
+1110011d11mmmrrr	ROd #1, ea
+1110nnndss000yyy	ASd.s #n, Dy
+1110nnndss001yyy	LSd.s #n, Dy
+1110nnndss010yyy	ROXd.s #n, Dy
+1110nnndss011yyy	ROd.s #n, Dy
+1110xxxdss100yyy	ASd.s Dx, Dy
+1110xxxdss101yyy	LSd.s Dx, Dy
+1110xxxdss110yyy	ROXd.s Dx, Dy
+1110xxxdss111yyy	ROd.s Dx, Dy
+
+1111xxxxxxxxxxxx	LINE F
