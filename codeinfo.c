@@ -1,9 +1,12 @@
 /*
- * $Id: codeinfo.c,v 1.1.1.1 1996/06/30 23:51:51 grubba Exp $
+ * $Id: codeinfo.c,v 1.2 1996/07/01 19:16:36 grubba Exp $
  *
  * Functions for handling segments of code.
  *
  * $Log: codeinfo.c,v $
+ * Revision 1.1.1.1  1996/06/30 23:51:51  grubba
+ * Entry into CVS
+ *
  * Revision 1.8  1996/06/30 23:06:31  grubba
  * Fixed several bugs in insert_seg*().
  * Added sanity checks.
@@ -74,6 +77,7 @@ static inline struct seg_info *insert_seg1(struct seg_info **root, ULONG maddr, 
 static struct seg_info *insert_seg_left(struct seg_info **root, ULONG maddr, ULONG mend, jmp_buf back);
 static struct seg_info *insert_seg_right(struct seg_info **root, ULONG maddr, ULONG mend, jmp_buf back);
 static void destroy_fix_seg(struct seg_info **root, struct seg_info *seg);
+static struct seg_info *new_seg(ULONG maddr, ULONG mend);
 static void free_seg(struct seg_info *seg);
 static void free_codeinfo(struct code_info *ci);
 

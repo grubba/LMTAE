@@ -1,9 +1,12 @@
 /*
- * $Id: recomp.c,v 1.1.1.1 1996/06/30 23:51:50 grubba Exp $
+ * $Id: recomp.c,v 1.2 1996/07/01 19:16:59 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.1.1.1  1996/06/30 23:51:50  grubba
+ * Entry into CVS
+ *
  * Revision 1.5  1996/06/19 11:08:25  grubba
  * *** empty log message ***
  *
@@ -89,13 +92,7 @@ struct code_info *new_codeinfo(ULONG maddr)
   struct code_info *ci = calloc(sizeof(struct code_info),1);
 
   if (ci) {
-    ci->code = (ULONG (*)(struct m_registers *, void *)) calloc(4, 1024);
-    if (ci->code) {
-      ci->maddr = maddr;
-    } else {
-      free(ci);
-      ci = NULL;
-    }
+    ci->maddr = maddr;
   }
   return(ci);
 }
@@ -139,7 +136,7 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
     if (maddr & 0xff000001) {
       /* BUS ERROR or ADDRESS ERROR*/
       
-      fprintf(stderr, "BUS ERROR! Bad address! 0x%08x\n", maddr);
+      fprintf(stderr, "BUS ERROR! Bad address! 0x%08lx\n", maddr);
 
       raise_exception(regs, (USHORT *)memory, VEC_BUS_ERROR + (maddr & 1));
       return;
@@ -147,6 +144,7 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
 
     if ((!segment) || (segment->maddr > maddr) || (segment->mend <= maddr)) {
       segment = find_seg(code_tree, maddr);
+#ifdef DEBUG
       if (segment) {
 	fprintf(stderr,
 		"0x%08lx called from 0x%08lx, New segment [0x%08lx - 0x%08lx]\n",
@@ -154,6 +152,7 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
       } else {
 	fprintf(stderr, "0x%08lx called from 0x%08lx\n", maddr, regs->pc);
       }
+#endif /* DEBUG */
     }
 
     if ((!segment) ||
@@ -183,12 +182,6 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
       segment->codeinfo = ci;
 
       fprintf(stderr, "Execute!\n");
-    }
-
-    /* Debug */
-    if ((maddr == 0x00f80efe) || (maddr == 0xf80f0a) || (maddr == 0xf80f1a)) {
-      void breakme(void);
-      breakme();
     }
 
     regs->pc = maddr;

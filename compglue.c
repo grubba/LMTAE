@@ -1,9 +1,12 @@
 /*
- * $Id: compglue.c,v 1.1.1.1 1996/06/30 23:51:53 grubba Exp $
+ * $Id: compglue.c,v 1.2 1996/07/01 19:16:49 grubba Exp $
  *
  * Help functions for the M68000 to Sparc compiler.
  *
  * $Log: compglue.c,v $
+ * Revision 1.1.1.1  1996/06/30 23:51:53  grubba
+ * Entry into CVS
+ *
  * Revision 1.6  1996/06/30 23:05:44  grubba
  * Fixed some bugs.
  * Now calls abort(), when encountering unimplemented opcodes.
@@ -43,6 +46,7 @@
 #include "sparc.h"
 #include "codeinfo.h"
 #include "compiler.h"
+#include "peephole.h"
 #include "opcodes.h"
 #include "templates/glue.h"
 
@@ -55,6 +59,12 @@
 #else
 #define DPRINTF(x)
 #endif
+
+/*
+ * Globals
+ */
+
+static ULONG ScratchPad[0x00080000];	/* 2Mb */
 
 /*
  * Functions
@@ -244,7 +254,7 @@ void calc_ea(ULONG **code, ULONG *pc, ULONG flags, ULONG oldpc)
 ULONG compile(struct code_info *ci)
 {
   ULONG pc = ci->maddr>>1;
-  ULONG *code = (ULONG *)ci->code;
+  ULONG *code = ScratchPad;
   ULONG oldpc;
   ULONG flags;
   ULONG regs = 0;
@@ -667,8 +677,7 @@ ULONG compile(struct code_info *ci)
   }
 #endif /* DEBUG */
 
-  ci->codeend = code;
-  break_me();
+  PeepHoleOptimize(ci, ScratchPad, code);
   return(pc<<1);
 }
 

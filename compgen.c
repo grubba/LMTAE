@@ -1,9 +1,13 @@
 /*
- * $Id: compgen.c,v 1.2 1996/07/01 11:44:26 grubba Exp $
+ * $Id: compgen.c,v 1.3 1996/07/01 19:16:44 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.2  1996/07/01 11:44:26  grubba
+ * Missing opcodes NBCD and PEA added to the table.
+ * Opcode PEA implemented.
+ *
  * Revision 1.1.1.1  1996/06/30 23:51:52  grubba
  * Entry into CVS
  *
@@ -925,12 +929,12 @@ int dis_pea(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(f
 
 int head_pea(USHORT opcode)
 {
-  return(opcode == 0x4840);
+  return(opcode == 0x4850);
 }
 
 void tab_pea(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4840",
+  fprintf(fp, "0x%08x, opcode_4850",
 	  TEF_DST | TEF_DST_LONG | (opcode & 0x003f));
 }
 
@@ -2039,29 +2043,133 @@ void as_add(FILE *fp, USHORT opcode, const char *mnemonic)
 
 int dis_add(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
+int head_asd(USHORT opcode)
+{
+  return (((opcode & 0xf1ff) == 0xe000) ||
+	  ((opcode & 0xfff8) == 0xe020) ||
+	  (opcode == 0xe0d0));
+}
+
+void tab_lsd(FILE *fp, USHORT opcode, const char *mnemonic);
+
+void tab_asd(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  if (opcode & 0x0100) {
+    /* FIXME: LSL doesn't set V on sign change which ASL should do */
+    /* ASL is equiv with LSL */
+    if ((opcode & 0x00c0) == 0x00c0) {
+      /* Memory shift */
+      tab_lsd(fp, (opcode & 0x013f) | 0xe2c0, mnemonic);
+    } else {
+      /* Register shift */
+      tab_lsd(fp, (opcode & 0x0fe7) | 0xe008, mnemonic);
+    }
+  } else {
+    if ((opcode & 0x00c0) == 0x00c0) {
+      /* Memory shift */
+      fprintf(fp, "0x%08x, opcode_e0d0",
+	      TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f) |
+	      TEF_WRITE_BACK);
+    } else {
+      /* Register shift */
+      if (opcode & 0x0020) {
+	/* Register shift count */
+	fprintf(fp, "0x%08x, opcode_%04x",
+		TEF_SRC | TEF_SRC_LOAD | TEF_SRC_BYTE | (opcode & 0x0e00) |
+		TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
+		opcode & 0xf020);
+      } else {
+	fprintf(fp, "0x%08x, opcode_%04x",
+		TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
+		opcode & 0xfe20);
+      }
+    }
+  }
+}
+
+void as_asd(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  /* ASR */
+  /* FIXME: No support for C or X */
+  fprintf(fp, "	and	-32, %%sr, %%sr\n");
+  if ((opcode & 0x00c0) == 0x00c0) {
+    /* Memory shift */
+    fprintf(fp,
+	    "	btst	1, %%acc0\n"
+	    "	sra	%%acc0, 1, %%acc0\n"
+	    "	bne,a	0f\n"
+	    "	or	0x11, %%sr, %%sr\n"
+	    "0:\n"
+	    "	cmp	%%acc0, %%g0\n"
+	    "	blt,a	0f\n"
+	    "	or	8, %%sr, %%sr\n"
+	    "	be,a	0f\n"
+	    "	or	4, %%sr, %%sr\n"
+	    "0:\n");
+  } else {
+    if (opcode & 0x0020) {
+      /* Register shift */
+      fprintf(fp,
+	      "	and	0x3f, %%acc1, %%acc1\n"
+	      "	sra	%%acc0, %%acc1, %%acc0\n"
+	      "	cmp	%%acc0, %%g0\n"
+	      "	blt,a	0f\n"
+	      "	or	8, %%sr, %%sr\n"
+	      "	be,a	0f\n"
+	      "	or	4, %%sr, %%sr\n"
+	      "0:\n");
+    } else {
+      /* Immediate shift */
+      fprintf(fp,
+	      "	btst	0x%02x, %%acc0\n"
+	      "	sra	%%acc0, 0x%02x, %%acc0\n"
+	      " bne,a	0f\n"
+	      "	or	0x11, %%sr, %%sr\n"
+	      "0:\n"
+	      "	cmp	%%acc0, %%g0\n"
+	      "	blt,a	0f\n"
+	      "	or	8, %%sr, %%sr\n"
+	      "	be,a	0f\n"
+	      "	or	4, %%sr, %%sr\n"
+	      "0:\n",
+	      (opcode & 0x0e00)?(1<<(((opcode & 0x0e00)>>9)-1)):0,
+	      ((opcode & 0x0e00)>>9));
+    }
+  }
+}
+
 int dis_asd(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 int dis_asd_imm(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 int dis_asd_mem(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_lsd(USHORT opcode)
 {
-  return(((opcode & 0xfef8) == 0xe028) |
-	 ((opcode & 0xf038) == 0xe008));
+  return(((opcode & 0xfef8) == 0xe028) ||
+	 ((opcode & 0xf038) == 0xe008) ||
+	 ((opcode & 0xfeff) == 0xe2d0));
 }
 
 void tab_lsd(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  if (opcode & 0x0020) {
-    /* Register */
+  if ((opcode & 0x00c0) == 0x00c0) {
+    /* Memory shift */
     fprintf(fp, "0x%08x, opcode_%04x",
-	    TEF_SRC | TEF_SRC_LOAD | TEF_SRC_BYTE | (opcode & 0x0e00) |
-	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
-	    opcode & 0xf138);
+	    TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f) |
+	    TEF_WRITE_BACK, (opcode & 0xffc0) | 0x0010);
   } else {
-    /* Immediate */
-    fprintf(fp, "0x%08x, opcode_%04x",
-	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
-	    opcode);
+    /* Register shift */
+    if (opcode & 0x0020) {
+      /* Register shift count */
+      fprintf(fp, "0x%08x, opcode_%04x",
+	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_BYTE | (opcode & 0x0e00) |
+	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
+	      opcode & 0xf138);
+    } else {
+      /* Immediate shift count */
+      fprintf(fp, "0x%08x, opcode_%04x",
+	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
+	      opcode);
+    }
   }
 }
 
@@ -2069,21 +2177,50 @@ void as_lsd(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   /* FIXME: Need to fix SR! */
   /* FIXME: C and X bits are not yet supported here! */
-  if (opcode & 0x0020) {
-    /* Register */
-    fprintf(fp, "	and	0x3f, %%acc1, %%acc1\n");
-  } else {
-    /* Immediate */
-    fprintf(fp, "	mov	0x%02x, %%acc1\n", (opcode & 0x0e00)>>9);
-  }
   fprintf(fp, "	and	-32, %%sr, %%sr\n");
-
-  if (opcode & 0x0100) {
-    /* LSL */
-    fprintf(fp, "	sll	%%acc0, %%acc1, %%acc0\n");
+  if ((opcode & 0x00c0) == 0x00c0) {
+    /* Memory shift */
+    if (opcode & 0x0100) {
+      /* LSL */
+      fprintf(fp,
+	      "	btst	0x80, %%acc0\n"
+	      "	sll	%%acc0, 1, %%acc0\n"
+	      "	bne,a	0f\n"
+	      "	or	0x11, %%sr, %%sr\n"
+	      "0:\n");
+    } else {
+      /* LSR */
+      fprintf(fp,
+	      "	btst	1, %%acc0\n"
+	      "	srl	%%acc0, 1, %%acc0\n"
+	      "	bne,a	0f\n"
+	      "	or	0x11, %%sr, %%sr\n"
+	      "0:\n");
+    }
   } else {
-    /* LSR */
-    fprintf(fp, "	srl	%%acc0, %%acc1, %%acc0\n");
+    /* Register shift */
+    if (opcode & 0x0020) {
+      /* Register */
+      fprintf(fp, "	and	0x3f, %%acc1, %%acc1\n");
+    } else {
+      /* Immediate */
+      fprintf(fp, "	mov	0x%02x, %%acc1\n", (opcode & 0x0e00)>>9);
+    }
+
+    if (opcode & 0x0100) {
+      /* LSL */
+      fprintf(fp, "	sll	%%acc0, %%acc1, %%acc0\n");
+    } else {
+      /* LSR */
+      if (!(opcode & 0x00c0)) {
+	fprintf(fp, "	and	0xff, %%acc0, %%acc0\n");
+      } else if ((opcode & 0x00c0) == 0x0040) {
+	fprintf(fp,
+		"	sethi	%%hi(0xffff0000), %%o0\n"
+		"	andn	%%acc0, %%o0, %%acc0\n");
+      }
+      fprintf(fp, "	srl	%%acc0, %%acc1, %%acc0\n");
+    }
   }
   fprintf(fp,
 	  "	cmp	%%acc0, %%g0\n"
@@ -2660,7 +2797,10 @@ struct opcode_info opcodes[] = {
   { 0xff00, 0x4600, "NOT", head_not, tab_not, as_not, comp_default, dis_not },
   
   { 0xffc0, 0x4800, "NBCD", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_nbcd },
+  { 0xfff8, 0x4840, "SWAP", head_swap, tab_swap, as_swap, comp_default, dis_swap },
+  { 0xfff8, 0x4848, "BKPT", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_bkpt },
   { 0xffc0, 0x4840, "PEA", head_pea, tab_pea, as_pea, comp_default, dis_pea },
+  { 0xffb8, 0x4880, "EXT", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_ext },
   { 0xfb80, 0x4880, "MOVEM", head_movem, tab_movem, as_movem, comp_default, dis_movem },
 
   { 0xfff0, 0x4e60, "MOVE_USP", head_default, tab_move_usp, as_move_usp, comp_default, dis_move_usp },
@@ -2673,10 +2813,6 @@ struct opcode_info opcodes[] = {
   { 0xffff, 0x4e75, "RTS", head_default, tab_rts, as_rts, comp_default, dis_rts },
   { 0xffff, 0x4e77, "RTR", head_default, tab_illegal, as_illegal, comp_default, dis_rtr },
   { 0xfffe, 0x4e7a, "MOVEC", head_default, tab_movec, as_movec, comp_default, dis_movec },
-
-  { 0xfff8, 0x4840, "SWAP", head_swap, tab_swap, as_swap, comp_default, dis_swap },
-  { 0xfff8, 0x4848, "BKPT", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_bkpt },
-  { 0xffb8, 0x4880, "EXT", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_ext },
 
   { 0xffff, 0x4afc, "ILLEGAL", head_default, tab_illegal, as_illegal, comp_default, dis_illegal },
   { 0xffc0, 0x4ac0, "TAS", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_tas },
@@ -2726,16 +2862,16 @@ struct opcode_info opcodes[] = {
   { 0xf130, 0xd100, "ADDX", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_addx },
   { 0xf000, 0xd000, "ADD", head_add, tab_add, as_add, comp_default, dis_add },
 
-  { 0xfec0, 0xe0c0, "AS", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_asd_mem },
-  { 0xfec0, 0xe2c0, "LS", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_lsd_mem },
+  { 0xfec0, 0xe0c0, "AS", head_asd, tab_asd, as_asd, comp_default, dis_asd_mem },
+  { 0xfec0, 0xe2c0, "LS", head_lsd, tab_lsd, as_lsd, comp_default, dis_lsd_mem },
   { 0xfec0, 0xe4c0, "ROX", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_roxd_mem },
   { 0xfec0, 0xe6c0, "RO", head_rod, tab_rod, as_rod, comp_default, dis_rod_mem },
   { 0xf0c0, 0xe0c0, "UNKNOWN", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_illegal },
-  { 0xf038, 0xe000, "AS", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_asd_imm },
+  { 0xf038, 0xe000, "AS", head_asd, tab_asd, as_asd, comp_default, dis_asd_imm },
   { 0xf038, 0xe008, "LS", head_lsd, tab_lsd, as_lsd, comp_default, dis_lsd_imm },
   { 0xf038, 0xe010, "ROX", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_roxd_imm },
   { 0xf038, 0xe018, "RO", head_rod, tab_rod, as_rod, comp_default, dis_rod_imm },
-  { 0xf038, 0xe020, "AS", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_asd },
+  { 0xf038, 0xe020, "AS", head_asd, tab_asd, as_asd, comp_default, dis_asd },
   { 0xf038, 0xe028, "LS", head_lsd, tab_lsd, as_lsd, comp_default, dis_lsd },
   { 0xf038, 0xe030, "ROX", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_roxd },
   { 0xf038, 0xe038, "RO", head_rod, tab_rod, as_rod, comp_default, dis_rod },

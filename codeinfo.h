@@ -1,9 +1,12 @@
 /*
- * $Id: codeinfo.h,v 1.1.1.1 1996/06/30 23:51:51 grubba Exp $
+ * $Id: codeinfo.h,v 1.2 1996/07/01 19:16:40 grubba Exp $
  *
  * Functions for handling segments of code.
  *
  * $Log: codeinfo.h,v $
+ * Revision 1.1.1.1  1996/06/30 23:51:51  grubba
+ * Entry into CVS
+ *
  * Revision 1.4  1996/06/19 11:08:25  grubba
  * Some minor bugs fixed.
  *
@@ -53,7 +56,6 @@ struct code_info {
 
 struct seg_info *find_seg(struct seg_info *root, ULONG maddr);
 struct seg_info *insert_seg(struct seg_info **root, ULONG maddr, ULONG mend);
-static struct seg_info *new_seg(ULONG maddr, ULONG mend);
 void dump_seg_tree(struct seg_info *root);
 
 struct code_info *find_ci(struct code_info **head, ULONG maddr);

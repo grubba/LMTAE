@@ -1,9 +1,12 @@
 #
-# $Id: Makefile,v 1.3 1996/07/01 16:20:44 marcus Exp $
+# $Id: Makefile,v 1.4 1996/07/01 19:16:33 grubba Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.3  1996/07/01 16:20:44  marcus
+# Blitter emulation imported into CVS repository.
+#
 # Revision 1.2  1996/07/01 00:13:53  grubba
 # It is now possible to compile from scratch.
 #
@@ -56,6 +59,12 @@ TABLES = tables/opcode_tab_0000.o tables/opcode_tab_1000.o \
 
 all : AmigaInclude ROM.dump citest compgen recomp rtest
 
+opcodes :
+	mkdir opcodes
+
+tables :
+	mkdir tables
+
 AmigaInclude :
 	ln -s /users/grubba/AmigaInclude .
 
@@ -72,9 +81,10 @@ clean :
 ci :	clean
 	-ci -l *.c *.h templates/*.gasp templates/*.h Makefile templates/Makefile
 
-rtest : rtest.o compglue.o opcodes.o templates/glue.o memory.o opcodes.o tables.o
+rtest : rtest.o compglue.o peephole.o opcodes.o\
+	templates/glue.o memory.o opcodes.o tables.o
 
-recomp : recomp.o compglue.o codeinfo.o hardware.o\
+recomp : recomp.o compglue.o peephole.o codeinfo.o hardware.o\
 	opcodes.o memory.o templates/glue.o opcodes.o tables.o sanity.o
 
 citest : citest.o codeinfo.o
