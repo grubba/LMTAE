@@ -1,9 +1,12 @@
 /*
- * $Id: recomp.c,v 1.11 1996/07/15 20:36:20 grubba Exp $
+ * $Id: recomp.c,v 1.12 1996/07/17 00:21:45 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.11  1996/07/15 20:36:20  grubba
+ * Now tracks changes Supervisor mode <=> User mode.
+ *
  * Revision 1.10  1996/07/14 21:44:23  grubba
  * Added support for adding hardware dynamically.
  * Added CIAA time of day clock (50Hz).
@@ -214,9 +217,11 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
 #ifdef DEBUG
     if ((regs->sr ^ oldsr) & 0x2000) {
       if (regs->sr & 0x2000) {
-	printf("Entering Supervisor mode. SR:0x%04lx\n", regs->sr);
+	printf("Entering Supervisor mode. SR:0x%04lx SSP:0x%08lx USP:0x%08lx\n",
+	       regs->sr, regs->ssp, regs->usp);
       } else {
-	printf("Leaving Supervisor mode. SR:0x%04lx\n", regs->sr);
+	printf("Leaving Supervisor mode. SR:0x%04lx SSP:0x%08lx USP:0x%08lx\n",
+	       regs->sr, regs->ssp, regs->usp);
       }
       oldsr = regs->sr;
     }
