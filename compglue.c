@@ -1,9 +1,14 @@
 /*
- * $Id: compglue.c,v 1.10 1996/08/04 16:25:11 grubba Exp $
+ * $Id: compglue.c,v 1.11 1996/08/04 17:21:01 grubba Exp $
  *
  * Help functions for the M68000 to Sparc compiler.
  *
  * $Log: compglue.c,v $
+ * Revision 1.10  1996/08/04 16:25:11  grubba
+ * Now does the SR scans.
+ * Does not yet skip past the opcode arguments in the SR scan.
+ * Split the tab_entry for the sr_magic into sr_magic_*.
+ *
  * Revision 1.9  1996/07/21 17:39:17  grubba
  * Now does instruction flushes correctly (I think).
  * Instruction flushing moved to peephole.c .
@@ -157,6 +162,20 @@ void break_me(void)
  * Help functions
  */
 
+void __inline__ skip_ea(U32 *pc, U32 flags)
+{
+  if ((flags & 0x0030) && ((flags & 0x003f) != 0x003c)) {
+    /* Not Register direct or immediate */
+    if ((flags & 0x003f) == 0x39) {
+      /* (d32).L */
+      (*pc) += 2;
+    } else if ((flags & 0x0038) > 0x20) {
+      /* (d8, An, Xn), (d8, PC, Xn) */
+      /* (d16,An), (d16).W, (d16,PC) */
+      (*pc)++;
+    }
+  }
+}
 
 void calc_ea(U32 **code, U32 *pc, U32 flags, U32 oldpc)
 {
@@ -313,22 +332,107 @@ U32 compile(struct code_info *ci)
   U16 *mem = (U16 *)memory;
   U16 opcode;
 
+  /* SR scan variables */
   U32 sr_mask = 0x00000000;
   U32 *sr_magic_start = ScratchPad;
   U32 *sr_magic_pos = ScratchPad;
 
+#ifndef NDEBUG
+  /* Consistency check variables */
+  U32 end_pc;
+  int sr_num_opcodes = 0;
+  int comp_num_opcodes = 0;
+#endif /* NDEBUG */
+
   /* Forward SR scan pass */
 
   do {
+#ifndef NDEBUG
+    sr_num_opcodes++;
+#endif /* NEBUG */
     opcode = mem[pc++];
     flags = compiler_tab[opcode].flags;
 
     *(sr_magic_pos++) = (SR_Unmagic[compiler_tab[opcode].sr_magic_needed]<<16) |
                         (SR_Unmagic[compiler_tab[opcode].sr_magic_changed]);
 
-    /* FIXME: Skip to next opcode */
+    /* Skip to next opcode */
+
+    /* Is this a MOVEM? -- if so skip the register mask */
+    if (flags & TEF_MOVEM) {
+      pc++;
+    }
+
+    /* Fix the source operand */
+
+    if (flags & TEF_SRC) {
+      if (!(flags & TEF_SRC_MOVEM)) {
+	U32 newflags = ((flags & (TEF_SRC_MASK | TEF_SRC_SIZE))>>TEF_SRC_SHIFT);
+
+	if ((flags & TEF_MOVEM) && (flags & TEF_WRITE_BACK)) {
+	  skip_ea(&pc, ((opcode & 0x0007) | 0x0010));
+	} else {
+	  /* Get the effective address */
+	  skip_ea(&pc, newflags);
+	}
+
+	if (flags & TEF_SRC_LOAD) {
+	  if ((flags & TEF_SRC_MASK) == 0x7800) {
+	    /* Immediate operand */
+	    switch (flags & TEF_SRC_SIZE) {
+	    case TEF_SRC_BYTE:
+	    case TEF_SRC_WORD:
+	      pc++;
+	    break;
+	    case TEF_SRC_LONG:
+	      pc += 2;
+	    break;
+	    default:
+	      fprintf(stderr, "Error in immediate operand for opcode 0x%04x, 0x%08x!\n", opcode, flags);
+	      abort();
+	      break;
+	    }
+	  }
+	}
+      }
+    }
+
+    if (flags & TEF_DST) {
+      if (!(flags & TEF_DST_MOVEM)) {
+	if ((flags & TEF_MOVEM) && (flags & TEF_WRITE_BACK)) {
+	  skip_ea(&pc, ((opcode & 0x0007) | 0x0010));
+	} else {
+	  skip_ea(&pc, flags & 0x00ff);
+	}
+
+	if (flags & TEF_DST_LOAD) {
+	  if ((flags & TEF_DST_MASK) == 0x003c) {
+	    /* Immediate operand */
+	    switch (flags & TEF_DST_SIZE) {
+	    case TEF_DST_BYTE:
+	    case TEF_DST_WORD:
+	      pc++;
+	    break;
+	    case TEF_DST_LONG:
+	      pc += 2;
+	    break;
+	    default:
+	      fprintf(stderr, "Error in immediate operand for opcode 0x%04x, 0x%08x!\n", opcode, flags);
+	      abort();
+	      break;
+	    }
+	  }
+	}
+      }
+    }
+
+    /* End skip to next opcode */
 
   } while (!(flags & TEF_TERMINATE));
+
+#ifndef NDEBUG
+  end_pc = pc;
+#endif /* NDEBUG */
 
   code_start = sr_magic_pos;
 
@@ -348,6 +452,10 @@ U32 compile(struct code_info *ci)
   copy_template(&code, s_pre_amble);
 
   do {
+#ifndef NDEBUG
+    comp_num_opcodes++;
+#endif /* NDEBUG */
+
     oldpc = pc;
     opcode = mem[pc++];
 
@@ -746,6 +854,22 @@ U32 compile(struct code_info *ci)
     }
 
   } while (!(flags & TEF_TERMINATE));
+
+#ifndef NDEBUG
+  if (end_pc != pc) {
+    printf("!! END_PC (0x%08x) from SR scan differs from from compile scan (0x%08x) !!\n",
+	   end_pc, pc);
+    abort();
+  }
+  if (sr_num_opcodes != comp_num_opcodes) {
+    printf("!! NUM_OPCODES from SR scan pass (%d) differs from from compile scan (%d) !!\n",
+	   sr_num_opcodes, comp_num_opcodes);
+    abort();
+  }
+#endif /* NDEBUG */
+
+  DPRINTF(("Compiled %d opcodes\n", comp_num_opcodes));
+
 #ifdef DEBUG
   {
     extern U32 opcode_4afc[];
