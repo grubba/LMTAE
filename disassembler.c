@@ -1,9 +1,13 @@
 /*
- * $Id: disassembler.c,v 1.2 1996/07/11 15:41:55 grubba Exp $
+ * $Id: disassembler.c,v 1.3 1996/07/15 14:37:51 grubba Exp $
  *
  * M68000 disassembler
  *
  * $Log: disassembler.c,v $
+ * Revision 1.2  1996/07/11 15:41:55  grubba
+ * Now has a GUI!
+ * Some bug-fixes.
+ *
  * Revision 1.1  1996/07/08 21:19:47  grubba
  * Disassembler added.
  *
@@ -255,7 +259,7 @@ void disassemble(ULONG start, ULONG end)
       }
     } else if (flags & TEF_SRC_QUICK8) {
       if (flags & 0x0010000) {
-	sprintf(strchr(buffer, '\0'), "#-0x%02lx, ", 0x0100 - ((flags & 0xfe00)>>9));
+	sprintf(strchr(buffer, '\0'), "#-0x%02lx, ", 0x0100 - ((flags & 0x1fe00)>>9));
       } else {
 	sprintf(strchr(buffer, '\0'), "#0x%02lx, ", ((flags & 0xfe00)>>9));
       }
