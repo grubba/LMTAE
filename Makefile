@@ -1,9 +1,14 @@
 #
-# $Id: Makefile,v 1.13 1996/07/19 16:46:07 grubba Exp $
+# $Id: Makefile,v 1.14 1996/08/11 13:57:28 grubba Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.13  1996/07/19 16:46:07  grubba
+# Cleaned up interrupt handling.
+# Cleaned up custom chip emulation.
+# INTENA/INTREQ should work.
+#
 # Revision 1.12  1996/07/14 21:44:13  grubba
 # Added support for adding hardware dynamically.
 # Added CIAA time of day clock (50Hz).
@@ -181,9 +186,12 @@ blitter.o : sparcblit.o minterms.o
 
 custom.o : custom_tab.c
 
-compglue.o : opcodes.h
+compglue.o : types.h recomp.h m68k.h sparc.h codeinfo.h compiler.h \
+	peephole.h opcodes.h templates/glue.h
 
-compgen.o : recomp.h m68k.h codeinfo.h
+compgen.o : types.h recomp.h m68k.h sparc.h codeinfo.h
+
+disassembler.o : types.h recomp.h m68k.h compiler.h opcodes.h
 
 citest.o : recomp.h m68k.h codeinfo.h
 
