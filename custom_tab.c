@@ -1,9 +1,14 @@
 /*
- * $Id: custom_tab.c,v 1.2 1996/07/21 16:16:13 grubba Exp $
+ * $Id: custom_tab.c,v 1.3 1998/02/10 01:02:00 marcus Exp $
  *
  * Tables for the customchip address decoding.
  *
  * $Log: custom_tab.c,v $
+ * Revision 1.2  1996/07/21 16:16:13  grubba
+ * custom_write_intena() and custom_write_intreq() moved to interrupt.[ch].
+ * Serialport emulation on stdin/stdout added.
+ * Custom registers that are write-only are now declared as such.
+ *
  * Revision 1.1  1996/07/19 16:46:12  grubba
  * Cleaned up interrupt handling.
  * Cleaned up custom chip emulation.
@@ -82,7 +87,7 @@ static S16 (*custom_read_tab[])(U32 reg) = {
   custom_write_only,	/* UNUSED */
   custom_write_only,	/* UNUSED */
   custom_write_only,	/* UNUSED */
-  custom_write_only,	/* UNUSED */
+  custom_read_deniseid,	/* DENISEID */
   custom_write_only,	/* DSKSYNC */
 
   custom_write_only,	/* COP1LCH */
@@ -322,7 +327,7 @@ static void (*custom_write_tab[])(U32 reg, U16 val) = {
   custom_read_only,	/* UNUSED */
   custom_read_only,	/* UNUSED */
   custom_read_only,	/* UNUSED */
-  custom_read_only,	/* UNUSED */
+  custom_read_only,	/* DENSISEID */
   NULL,			/* DSKSYNC */
 
   NULL,			/* COP1LCH */

@@ -1,9 +1,14 @@
 /*
- * $Id: custom.c,v 1.2 1996/07/21 16:16:10 grubba Exp $
+ * $Id: custom.c,v 1.3 1998/02/10 01:01:59 marcus Exp $
  *
  * Custom chip emulation
  *
  * $Log: custom.c,v $
+ * Revision 1.2  1996/07/21 16:16:10  grubba
+ * custom_write_intena() and custom_write_intreq() moved to interrupt.[ch].
+ * Serialport emulation on stdin/stdout added.
+ * Custom registers that are write-only are now declared as such.
+ *
  * Revision 1.1  1996/07/19 16:46:10  grubba
  * Cleaned up interrupt handling.
  * Cleaned up custom chip emulation.
@@ -78,6 +83,11 @@ static void custom_write_serdat(U32 reg, U16 val)
   fflush(stdout);
   memory[0xdff018] |= 0x30;		/* TSRE | TBE */
   custom_write_intreq(0, 0x8001);	/* TBE Transmit Buffer Empty */
+}
+
+static S16 custom_read_deniseid(U32 reg)
+{
+  return 0xfc; /* Enhanced HighRes Denise */
 }
 
 /*
