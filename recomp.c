@@ -1,9 +1,12 @@
 /*
- * $Id: recomp.c,v 1.21 1998/02/10 17:20:51 marcus Exp $
+ * $Id: recomp.c,v 1.22 1998/02/10 21:40:42 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.21  1998/02/10 17:20:51  marcus
+ * Synchronized raster counter.
+ *
  * Revision 1.20  1998/02/10 02:03:38  marcus
  * VERTB interrupts added.
  *
@@ -524,6 +527,7 @@ int main(int argc, char **argv)
 	if ((rommem = (U8 *)mmap((caddr_t)(memory + 0x00f80000), 512*1024,
 				    PROT_READ, MAP_SHARED|MAP_FIXED, romfd, 0))) {
 	  if (rommem == memory + 0x00f80000) {
+	    U32 baseaddr;
 
 	    scan_table();
 
@@ -570,6 +574,27 @@ int main(int argc, char **argv)
 
 	    reset_hw();
 	    init_timebase();
+
+	    /* We need the RAM to be mapped before we do this... */
+	    if ((baseaddr = ((U32 *)(memory + 0x00f80000))[1] & 0xfff80000) !=
+		0x00f80000) {
+	      printf("Rekick-type kickstat, baseaddr: 0x%08lx\n"
+		     "WARNING: Not fully supported yet!\n",
+		     baseaddr);
+	      if (baseaddr & 0xff000000) {
+		printf("No high-memory available fro re-kick!\n");
+		exit(1);
+	      }
+	      /* Copy the rom to the rekick-space... */
+	      memcpy(memory + baseaddr, rommem, 0x00080000);
+
+	      /* Apparently we need to put some values in these positions. */
+#if 0
+	      ((U32 *)(memory + baseaddr + 0x0007fff8))[0] = 0xXXXXXXXX;
+	      ((U32 *)(memory + baseaddr + 0x0007fff8))[1] = 0xXXXXXXXX;
+#endif /* 0 */
+	    }
+
 	    start_cpu();
 
 	    thr_create(NULL, THR_MIN_STACK, vblank_entry, NULL,
