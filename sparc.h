@@ -1,7 +1,10 @@
 /*
- * $Id: sparc.h,v 1.1.1.1 1996/06/30 23:51:50 grubba Exp $
+ * $Id: sparc.h,v 1.2 1996/07/17 16:02:02 grubba Exp $
  *
  * $Log: sparc.h,v $
+ * Revision 1.1.1.1  1996/06/30 23:51:50  grubba
+ * Entry into CVS
+ *
  * Revision 1.7  1996/06/19 11:08:25  grubba
  * *** empty log message ***
  *
@@ -34,6 +37,10 @@
 
 #ifndef SPARC_H
 #define SPARC_H
+
+#ifndef TYPES_H
+#include "types.h"
+#endif /* TYPES_H */
 
 /* Register definitions */
 
@@ -166,7 +173,7 @@
 #define S_EMIT(value)	do { **code = (value); (*code)++; } while (0)
 #define S_EMIT6(base, dst, op, src, i, imm13) S_EMIT(((base) << 30) | ((dst) << 25) | ((op) << 19) | ((src) << 14) | ((i) << 13) | (imm13))
 #define S_EMIT3(base, op, imm22) S_EMIT(((base) << 30) | ((op) << 22) | (imm22))
-#define S_EMIT_BRANCH(op, addr)	S_EMIT3(0, op, ((((ULONG)(addr))-((ULONG)(*code))))>>2)
+#define S_EMIT_BRANCH(op, addr)	S_EMIT3(0, op, ((((U32)(addr))-((U32)(*code))))>>2)
 
 #define S_ADD(srca, srcb, dst)	S_EMIT6(2, dst, 0, srca, 0, srcb)
 #define S_ADDI(val, src, dst)	S_EMIT6(2, dst, 0, src, 1, ((val) & 0x1fff))
@@ -196,7 +203,7 @@
 #define S_NOP			S_EMIT(0x01000000)
 #define S_OR(srca, srcb, dst)	S_EMIT6(2, dst, 2, srca, 0, srcb)
 #define S_ORI(val, src, dst)	S_EMIT6(2, dst, 2, src, 1, ((val) & 0x1fff))
-#define S_SETHI(val, reg)	S_EMIT(0x01000000 | ((reg) << 25) | (((ULONG)(val))>>10))
+#define S_SETHI(val, reg)	S_EMIT(0x01000000 | ((reg) << 25) | (((U32)(val))>>10))
 #define S_SLLI(src, val, dst)	S_EMIT6(2, dst, 0x25, src, 1, ((val) & 0x1fff))
 #define S_SRAI(src, val, dst)	S_EMIT6(2, dst, 0x27, src, 1, ((val) & 0x1fff))
 #define S_ST(src, dsta, dstb)	S_EMIT6(3, dsta, 4, src, 0, dstb)

@@ -1,9 +1,12 @@
 /*
- * $Id: cia.c,v 1.3 1996/07/17 00:18:13 grubba Exp $
+ * $Id: cia.c,v 1.4 1996/07/17 16:01:01 grubba Exp $
  *
  * CIA emulation.
  *
  * $Log: cia.c,v $
+ * Revision 1.3  1996/07/17 00:18:13  grubba
+ * Now registers with name in add_hw().
+ *
  * Revision 1.2  1996/07/15 05:20:57  grubba
  * Added timer A and B.
  * Real-time timers now go at 1/10th of real-speed.
@@ -23,6 +26,8 @@
 
 #include <sys/time.h>
 
+#include "types.h"
+
 #include "recomp.h"
 #include "hardware.h"
 
@@ -30,8 +35,8 @@
  * Globals
  */
 
-static BYTE (*cia_read_tab[32])(BYTE);
-static void (*cia_write_tab[32])(BYTE, BYTE);
+static S8 (*cia_read_tab[32])(S8);
+static void (*cia_write_tab[32])(S8, S8);
 
 /*
  * Static Globals
@@ -54,23 +59,23 @@ static signed char cia_registers[] = {
  * Generic functions
  */
 
-BYTE cia_read_bad(BYTE regnum)
+S8 cia_read_bad(S8 regnum)
 {
   printf("cia_read_bad register #0x%02x\n", regnum);
   return (cia_registers[regnum]);
 }
 
-void cia_write_bad(BYTE regnum, BYTE val)
+void cia_write_bad(S8 regnum, S8 val)
 {
   printf("cia_write_bad register #0x%02x, value 0x%02x\n", regnum, val);
 }
 
-BYTE cia_read_reg(BYTE regnum)
+S8 cia_read_reg(S8 regnum)
 {
   return(cia_registers[regnum]);
 }
 
-void cia_write_reg(BYTE regnum, BYTE val)
+void cia_write_reg(S8 regnum, S8 val)
 {
   cia_registers[regnum] = val;
 }
@@ -91,9 +96,9 @@ void cia_write_reg(BYTE regnum, BYTE val)
  * CIA A: Peripheral ports
  */
 
-void ciaa_write_pra(BYTE regnum, BYTE val)
+void ciaa_write_pra(S8 regnum, S8 val)
 {
-  BYTE bits = cia_registers[regnum] ^ val;
+  S8 bits = cia_registers[regnum] ^ val;
 
   if (bits & 1) {
     if (val & 1) {
@@ -115,9 +120,9 @@ void ciaa_write_pra(BYTE regnum, BYTE val)
   cia_registers[regnum] = val & 0x7f;
 }
 
-void ciaa_write_ddra(BYTE regnum, BYTE val)
+void ciaa_write_ddra(S8 regnum, S8 val)
 {
-  BYTE bits = cia_registers[regnum] ^ val;
+  S8 bits = cia_registers[regnum] ^ val;
 
   cia_registers[regnum] = val;
 
@@ -134,13 +139,13 @@ static int ciaa_timera_latch = 0;
 static int ciaa_timera_offset = 0;
 hrtime_t ciaa_timera_base = 0;
 
-BYTE ciaa_read_timera(BYTE reg)
+S8 ciaa_read_timera(S8 reg)
 {
   if ((cia_registers[0x0e] & 0x20) || (!(cia_registers[0x0e] & 0x01))) {
     /* CNT line */
     printf("Other timermodes not supported!\n");
 
-    return (((BYTE *)&ciaa_timera_offset)[7 - reg]);
+    return (((S8 *)&ciaa_timera_offset)[7 - reg]);
   } else {
     /* 10s of CPU cycles */
     hrtime_t current = gethrtime() - ciaa_timera_base;
@@ -151,14 +156,14 @@ BYTE ciaa_read_timera(BYTE reg)
 
     printf("CIA A: Timer A is 0x%04x\n", value);
 
-    return (((BYTE *)&value)[7-reg]);
+    return (((S8 *)&value)[7-reg]);
   }
 }
 
-void ciaa_write_timera(BYTE reg, BYTE val)
+void ciaa_write_timera(S8 reg, S8 val)
 {
-  ((BYTE *)&ciaa_timera_latch)[7 - reg] = val;
-  ((BYTE *)&ciaa_timera_offset)[7 - reg] = val;
+  ((S8 *)&ciaa_timera_latch)[7 - reg] = val;
+  ((S8 *)&ciaa_timera_offset)[7 - reg] = val;
   ciaa_timera_base = gethrtime();
 }
 
@@ -170,13 +175,13 @@ static int ciaa_timerb_latch = 0;
 static int ciaa_timerb_offset = 0;
 hrtime_t ciaa_timerb_base = 0;
 
-BYTE ciaa_read_timerb(BYTE reg)
+S8 ciaa_read_timerb(S8 reg)
 {
   if ((cia_registers[0x0f] & 0x30) || (!cia_registers[0x0f] & 0x01)) {
     /* CNT or Timer A or Timer A and CNT */
     printf("Other timermodes not supported!\n");
 
-    return (((BYTE *)&ciaa_timerb_offset)[9 - reg]);
+    return (((S8 *)&ciaa_timerb_offset)[9 - reg]);
   } else {
     /* 10s of CPU cycles */
     hrtime_t current = gethrtime() - ciaa_timerb_base;
@@ -187,14 +192,14 @@ BYTE ciaa_read_timerb(BYTE reg)
     
     printf("CIA A: Timer B is 0x%04x\n", value);
 
-    return (((BYTE *)&value)[9-reg]);
+    return (((S8 *)&value)[9-reg]);
   }
 }
 
-void ciaa_write_timerb(BYTE reg, BYTE val)
+void ciaa_write_timerb(S8 reg, S8 val)
 {
-  ((BYTE *)&ciaa_timerb_latch)[9 - reg] = val;
-  ((BYTE *)&ciaa_timerb_offset)[9 - reg] = val;
+  ((S8 *)&ciaa_timerb_latch)[9 - reg] = val;
+  ((S8 *)&ciaa_timerb_offset)[9 - reg] = val;
   ciaa_timerb_base = gethrtime();
 }
 
@@ -203,11 +208,11 @@ void ciaa_write_timerb(BYTE reg, BYTE val)
  */
 
 static int ciaa_tod_state = 0;
-static ULONG ciaa_tod_value = 0;
+static U32 ciaa_tod_value = 0;
 static hrtime_t ciaa_tod_base = 0;
-static ULONG ciaa_tod_offset = 0;
+static U32 ciaa_tod_offset = 0;
 
-BYTE ciaa_read_tod(BYTE reg)
+S8 ciaa_read_tod(S8 reg)
 {
   if (!ciaa_tod_state) {
     hrtime_t current = gethrtime() - ciaa_tod_base;
@@ -219,10 +224,10 @@ BYTE ciaa_read_tod(BYTE reg)
   } else if (reg == 0x08) {
     ciaa_tod_state &= ~1;
   }
-  return(((BYTE *)&ciaa_tod_value)[0x0b - reg]);
+  return(((S8 *)&ciaa_tod_value)[0x0b - reg]);
 }
 
-void ciaa_write_tod(BYTE reg, BYTE val)
+void ciaa_write_tod(S8 reg, S8 val)
 {
   if (reg == 0x0a) {
     ciaa_tod_state |= 2;
@@ -230,14 +235,14 @@ void ciaa_write_tod(BYTE reg, BYTE val)
     ciaa_tod_state &= ~2;
   }
 
-  ((BYTE *)&ciaa_tod_offset)[0x0b - reg] = val;
+  ((S8 *)&ciaa_tod_offset)[0x0b - reg] = val;
 
   printf("CIAA TOD = 0x%06lx\n", ciaa_tod_offset);
 
   ciaa_tod_base = gethrtime();
 }
 
-void ciaa_write_alarm(BYTE reg, BYTE val)
+void ciaa_write_alarm(S8 reg, S8 val)
 {
   printf("CIA A: Setting alarm (Not supported yet!)\n");
   cia_registers[reg] = val;
@@ -247,9 +252,9 @@ void ciaa_write_alarm(BYTE reg, BYTE val)
  * CIA A: Control registers
  */
 
-void ciaa_write_cra(BYTE regnum, BYTE val)
+void ciaa_write_cra(S8 regnum, S8 val)
 {
-  BYTE bits = cia_registers[regnum] ^ val;
+  S8 bits = cia_registers[regnum] ^ val;
 
   cia_registers[regnum] = val;
 
@@ -274,9 +279,9 @@ void ciaa_write_cra(BYTE regnum, BYTE val)
   }
 }
 
-void ciaa_write_crb(BYTE regnum, BYTE val)
+void ciaa_write_crb(S8 regnum, S8 val)
 {
-  BYTE bits = cia_registers[regnum] ^ val;
+  S8 bits = cia_registers[regnum] ^ val;
 
   cia_registers[regnum] = val;
 
@@ -316,7 +321,7 @@ void ciaa_write_crb(BYTE regnum, BYTE val)
  * Tables
  */
 
-static BYTE (*cia_read_tab[])(BYTE) = {
+static S8 (*cia_read_tab[])(S8) = {
   /* CIA A */
   cia_read_reg,	/* PRA */
   cia_read_bad,	/* PRB */
@@ -353,7 +358,7 @@ static BYTE (*cia_read_tab[])(BYTE) = {
   cia_read_reg,	/* CRB */
 };
 
-static void (*cia_write_tab[])(BYTE, BYTE) = {
+static void (*cia_write_tab[])(S8, S8) = {
   /* CIA A */
   ciaa_write_pra,	/* PRA */
   cia_write_bad,	/* PRB */
@@ -394,21 +399,21 @@ static void (*cia_write_tab[])(BYTE, BYTE) = {
  * Glue functions
  */
 
-ULONG read_cia(ULONG offset, ULONG base)
+U32 read_cia(U32 offset, U32 base)
 {
-  BYTE reg = ((offset >> 8) & 0x1f);
+  S8 reg = ((offset >> 8) & 0x1f);
 
   return(cia_read_tab[reg](reg));
 }
 
-void write_cia(ULONG offset, ULONG val, ULONG base)
+void write_cia(U32 offset, U32 val, U32 base)
 {
-  BYTE reg = ((offset >> 8) & 0x1f);
+  S8 reg = ((offset >> 8) & 0x1f);
 
   cia_write_tab[reg](reg, val);
 }
 
-void reset_cia(ULONG base)
+void reset_cia(U32 base)
 {
   fprintf(stdout, "CIA base is 0x%08lx\n", base);
   ciaa_tod_state = 0;

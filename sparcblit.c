@@ -218,7 +218,7 @@ void doblit_sync()
   bltafwm=BLTAFWM; bltalwm=BLTALWM;
   bltcon0=BLTCON0; bltcon1=BLTCON1; bltsize=BLTSIZE;
 
-  __asm("flush %g0");
+  __asm__("flush %g0");
 
   cond_broadcast(&blitter_state);
   mutex_unlock(&dmaconr_lock);

@@ -1,9 +1,14 @@
 /*
- * $Id: rtest.c,v 1.2 1996/07/13 19:32:19 grubba Exp $
+ * $Id: rtest.c,v 1.3 1996/07/17 16:01:51 grubba Exp $
  *
  * Test rpogram for the M68000 to Sparc recompiler.
  *
  * $Log: rtest.c,v $
+ * Revision 1.2  1996/07/13 19:32:19  grubba
+ * Now defaults to very little debuginfo.
+ * Added (un|set)patch().
+ * Patches added to MakeLibrary(), MakeFunctions(), Abort() and AddLibrary().
+ *
  * Revision 1.1.1.1  1996/06/30 23:51:53  grubba
  * Entry into CVS
  *
@@ -27,6 +32,8 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
+#include "types.h"
+
 #include "recomp.h"
 #include "codeinfo.h"
 
@@ -36,7 +43,7 @@
 
 unsigned char *memory = NULL;
 
-unsigned long debuglevel = ~0;
+U32 debuglevel = ~0;
 
 /*
  * Stubs
@@ -46,14 +53,14 @@ void reset_hw(void){}
 int load_hw_byte(){}
 int load_hw_short(){}
 int load_hw(){}
-void store_hw_byte(ULONG maddr, UBYTE val){}
-void store_hw_short(ULONG maddr, USHORT val){}
-void store_hw(ULONG maddr, ULONG val){}
-ULONG clobber_code_byte(ULONG maddr, UBYTE val){}
-ULONG clobber_code_short(ULONG maddr, USHORT val){}
-void clobber_code(ULONG maddr, ULONG val){}
+void store_hw_byte(U32 maddr, U8 val){}
+void store_hw_short(U32 maddr, U16 val){}
+void store_hw(U32 maddr, U32 val){}
+U32 clobber_code_byte(U32 maddr, U8 val){}
+U32 clobber_code_short(U32 maddr, U16 val){}
+void clobber_code(U32 maddr, U32 val){}
 
-ULONG raise_exception(struct m_registers *regs, USHORT *mem, ULONG vec){return 0;}
+U32 raise_exception(struct m_registers *regs, U16 *mem, U32 vec){return 0;}
 
 /*
  * Functions
@@ -82,8 +89,8 @@ int main(int argc, char **argv)
 	    };
 	    
 	    if ((ci.code = (void *)calloc(4, 1024))) {
-	      ULONG mend;
-	      ULONG *dump;
+	      U32 mend;
+	      U32 *dump;
 
 	      printf("Compiling...\n");
 	      mend = compile(&ci);

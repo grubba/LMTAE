@@ -1,10 +1,16 @@
+/*
+ * $Id: common.h,v 1.2 1996/07/17 16:01:11 grubba Exp $
+ *
+ * $Log$
+ *
+ */
 
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed long s32;
-typedef unsigned long u32;
+#ifndef COMMON_H
+#define COMMON_H
+
+#ifndef TYPES_H
+#include "types.h"
+#endif /* TYPES_H */
 
 extern volatile u8 *chipmem;
 extern volatile u16 *custom;
@@ -31,3 +37,5 @@ extern int devzero;
 #define BLTCDAT REGACCESS(0x070)
 #define BLTBDAT REGACCESS(0x072)
 #define BLTADAT REGACCESS(0x074)
+
+#endif /* COMMON_H */

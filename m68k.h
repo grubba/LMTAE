@@ -1,7 +1,11 @@
 /*
- * $Id: m68k.h,v 1.2 1996/07/11 15:41:58 grubba Exp $
+ * $Id: m68k.h,v 1.3 1996/07/17 16:01:36 grubba Exp $
  *
  * $Log: m68k.h,v $
+ * Revision 1.2  1996/07/11 15:41:58  grubba
+ * Now has a GUI!
+ * Some bug-fixes.
+ *
  * Revision 1.1.1.1  1996/06/30 23:51:50  grubba
  * Entry into CVS
  *
@@ -26,11 +30,19 @@
 #ifndef M68K_H
 #define M68K_H
 
+/*
+ * Includes
+ */
+
+#ifndef TYPES_H
+#include "types.h"
+#endif /* TYPES_H */
+
 struct m_registers {
-  volatile ULONG d0,d1,d2,d3,d4,d5,d6,d7,a0,a1,a2,a3,a4,a5,a6,a7;
-  volatile ULONG usp,ssp,sr,pc;
-  volatile ULONG vbr;
-  volatile ULONG low, high;
+  volatile U32 d0,d1,d2,d3,d4,d5,d6,d7,a0,a1,a2,a3,a4,a5,a6,a7;
+  volatile U32 usp,ssp,sr,pc;
+  volatile U32 vbr;
+  volatile U32 low, high;
 };
 
 #define M_A0	8

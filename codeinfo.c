@@ -1,9 +1,15 @@
 /*
- * $Id: codeinfo.c,v 1.2 1996/07/01 19:16:36 grubba Exp $
+ * $Id: codeinfo.c,v 1.3 1996/07/17 16:01:06 grubba Exp $
  *
  * Functions for handling segments of code.
  *
  * $Log: codeinfo.c,v $
+ * Revision 1.2  1996/07/01 19:16:36  grubba
+ * Implemented ASL and ASR.
+ * Changed semantics for new_codeinfo(), it doesn't allocate space for the code.
+ * Added PeepHoleOptimize(). At the moment it just mallocs and copies the code.
+ * Removed some warnings.
+ *
  * Revision 1.1.1.1  1996/06/30 23:51:51  grubba
  * Entry into CVS
  *
@@ -45,7 +51,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "recomp.h"
+#include "types.h"
 #include "m68k.h"
 #include "codeinfo.h"
 
@@ -73,11 +79,11 @@ struct seg_info *code_tree;
  * Prototypes
  */
 
-static inline struct seg_info *insert_seg1(struct seg_info **root, ULONG maddr, ULONG mend, jmp_buf back);
-static struct seg_info *insert_seg_left(struct seg_info **root, ULONG maddr, ULONG mend, jmp_buf back);
-static struct seg_info *insert_seg_right(struct seg_info **root, ULONG maddr, ULONG mend, jmp_buf back);
+static __inline__ struct seg_info *insert_seg1(struct seg_info **root, U32 maddr, U32 mend, jmp_buf back);
+static struct seg_info *insert_seg_left(struct seg_info **root, U32 maddr, U32 mend, jmp_buf back);
+static struct seg_info *insert_seg_right(struct seg_info **root, U32 maddr, U32 mend, jmp_buf back);
 static void destroy_fix_seg(struct seg_info **root, struct seg_info *seg);
-static struct seg_info *new_seg(ULONG maddr, ULONG mend);
+static struct seg_info *new_seg(U32 maddr, U32 mend);
 static void free_seg(struct seg_info *seg);
 static void free_codeinfo(struct code_info *ci);
 
@@ -88,7 +94,7 @@ static void free_codeinfo(struct code_info *ci);
 /*
  * Segment handling
  */
-struct seg_info *find_seg(struct seg_info *root, ULONG maddr)
+struct seg_info *find_seg(struct seg_info *root, U32 maddr)
 {
   if ((!root) || (maddr >= root->mmax)) {
     return (NULL);
@@ -130,7 +136,7 @@ find_left:
   /* NOT_REACHED */
 }
 
-int check_segtree_balance(struct seg_info *root, ULONG min, ULONG max, ULONG color)
+int check_segtree_balance(struct seg_info *root, U32 min, U32 max, U32 color)
 {
   if (!root) {
     return(0);
@@ -146,7 +152,7 @@ int check_segtree_balance(struct seg_info *root, ULONG min, ULONG max, ULONG col
     }
 
     if ((root->mend > max) || (root->maddr < min)) {
-      fprintf(stderr, "SANITY: Tree overlap 0x%08lx, 0x%08lx <=> 0x%08lx, 0x%08lx\n",
+      fprintf(stderr, "SANITY: Tree overlap 0x%08x, 0x%08x <=> 0x%08x, 0x%08x\n",
 	      root->maddr, root->mend, min, max);
       dump_seg_tree(root);
       dump_seg_tree(code_tree);
@@ -182,7 +188,7 @@ void check_segtree_sanity(struct seg_info *root)
   (void)check_segtree_balance(root, 0, ~0, SEG_COLOR_RED);
 }
 
-struct seg_info *insert_seg(struct seg_info **root, ULONG maddr, ULONG mend)
+struct seg_info *insert_seg(struct seg_info **root, U32 maddr, U32 mend)
 {
   struct seg_info *ret_val;
   jmp_buf fastreturn;
@@ -212,7 +218,7 @@ struct seg_info *insert_seg(struct seg_info **root, ULONG maddr, ULONG mend)
   return(ret_val);
 }
 
-static inline struct seg_info *insert_seg1(struct seg_info **root, ULONG maddr, ULONG mend, jmp_buf back)
+static __inline__ struct seg_info *insert_seg1(struct seg_info **root, U32 maddr, U32 mend, jmp_buf back)
 {
   /* NOTE: Inclusive search */
   if (!(*root)) {
@@ -262,7 +268,7 @@ static inline struct seg_info *insert_seg1(struct seg_info **root, ULONG maddr, 
   }
 }
 
-static struct seg_info *insert_seg_left(struct seg_info **root, ULONG maddr, ULONG mend, jmp_buf back)
+static struct seg_info *insert_seg_left(struct seg_info **root, U32 maddr, U32 mend, jmp_buf back)
 {
   struct seg_info *ret_val;
 
@@ -451,7 +457,7 @@ static struct seg_info *insert_seg_left(struct seg_info **root, ULONG maddr, ULO
   
 }
 
-static struct seg_info *insert_seg_right(struct seg_info **root, ULONG maddr, ULONG mend, jmp_buf back)
+static struct seg_info *insert_seg_right(struct seg_info **root, U32 maddr, U32 mend, jmp_buf back)
 {
   struct seg_info *ret_val;
 
@@ -641,7 +647,7 @@ static struct seg_info *insert_seg_right(struct seg_info **root, ULONG maddr, UL
   }
 }
 
-inline static void rotate_left_seg(struct seg_info **root, struct seg_info *seg)
+__inline__ static void rotate_left_seg(struct seg_info **root, struct seg_info *seg)
 {
   DPRINTF(("DEBUG: rotate left_seg\n"));
   seg->right->parent = seg->parent;
@@ -667,7 +673,7 @@ inline static void rotate_left_seg(struct seg_info **root, struct seg_info *seg)
   }
 }
 
-inline static void rotate_right_seg(struct seg_info **root, struct seg_info *seg)
+__inline__ static void rotate_right_seg(struct seg_info **root, struct seg_info *seg)
 {
   DPRINTF(("DEBUG: rotate_right_seg\n"));
   seg->left->parent = seg->parent;
@@ -906,14 +912,14 @@ static void destroy_fix_seg(struct seg_info **root, struct seg_info *seg)
   seg->mmin &= ~SEG_COLOR_RED;
 }
 
-static inline void print_space(FILE *fp, int n)
+static __inline__ void print_space(FILE *fp, int n)
 {
   while (n--) {
     putc(' ', fp);
   }
 }
 
-static void dump_seg_tree1(struct seg_info *root, int type, ULONG depth)
+static void dump_seg_tree1(struct seg_info *root, int type, U32 depth)
 {
   if (root) {
     struct code_info *ci;
@@ -931,10 +937,10 @@ static void dump_seg_tree1(struct seg_info *root, int type, ULONG depth)
     case 2: putc('\\', stdout);
       break;
     }
-    fprintf(stdout, "%c:%lx:%lx:%lx:%lx", (root->mmin & SEG_COLOR_RED)?'O':'*',
+    fprintf(stdout, "%c:%x:%x:%x:%x", (root->mmin & SEG_COLOR_RED)?'O':'*',
 	    root->mmin & ~SEG_COLOR_RED, root->maddr, root->mend, root->mmax);
     for (ci = root->codeinfo; ci; ci=ci->next) {
-      fprintf(stdout, "->%08lx", ci->maddr);
+      fprintf(stdout, "->%08x", ci->maddr);
     }
     fprintf(stdout, "\n");
     if (root->left && (root->left->parent != root)) {
@@ -960,7 +966,7 @@ void dump_seg_tree(struct seg_info *root)
 }
 
 
-static struct seg_info *new_seg(ULONG maddr, ULONG mend)
+static struct seg_info *new_seg(U32 maddr, U32 mend)
 {
   struct seg_info *si;
 
@@ -995,7 +1001,7 @@ static void free_codeinfo(struct code_info *ci)
   }
 }
 
-struct code_info *find_ci(struct code_info **head, ULONG maddr)
+struct code_info *find_ci(struct code_info **head, U32 maddr)
 {
   if (head) {
     struct code_info **node = head;
@@ -1021,12 +1027,12 @@ struct code_info *find_ci(struct code_info **head, ULONG maddr)
   return(NULL);
 }
 
-void clobber_code(ULONG maddr, ULONG val)
+void clobber_code(U32 maddr, U32 val)
 {
   struct seg_info *node;
   
 #ifdef DEBUG
-  printf("clobber_code(0x%08lx, 0x%08lx)\n", maddr, val);
+  printf("clobber_code(0x%08x, 0x%08x)\n", maddr, val);
 #endif /* DEBUG */
 
   if ((node = find_seg(code_tree, maddr))) {

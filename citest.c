@@ -1,9 +1,12 @@
 /*
- * $Id: citest.c,v 1.1.1.1 1996/06/30 23:51:51 grubba Exp $
+ * $Id: citest.c,v 1.2 1996/07/17 16:01:04 grubba Exp $
  *
  * Codeinfo tester
  *
  * $Log: citest.c,v $
+ * Revision 1.1.1.1  1996/06/30 23:51:51  grubba
+ * Entry into CVS
+ *
  * Revision 1.2  1996/06/19 11:08:25  grubba
  * Some minor bugs fixed.
  *
@@ -18,7 +21,8 @@
 
 #include <stdio.h>
 
-#include "recomp.h"
+#include "types.h"
+
 #include "m68k.h"
 #include "codeinfo.h"
 
@@ -37,7 +41,7 @@ int main(int argc, char **argv)
   fflush(stdout);
 
   while (fgets(buf, 1023, stdin)) {
-    ULONG start, end;
+    U32 start, end;
     
     if (buf[0] == 'h') {
       printf("a <start> <end>\tAdd the range from <start> to <end>\n");
@@ -50,12 +54,12 @@ int main(int argc, char **argv)
       dump_seg_tree(seg_tree);
     } else if (buf[0] == 'q') {
       exit(0);
-    } else if (2==sscanf(buf, "a %ld %ld\n", &start, &end)) {
+    } else if (2==sscanf(buf, "a %d %d\n", &start, &end)) {
       insert_seg(&seg_tree, start, end);
       dump_seg_tree(seg_tree);
-    } else if (1==sscanf(buf, "f %ld\n", &start)) {
+    } else if (1==sscanf(buf, "f %d\n", &start)) {
       dump_seg_tree(find_seg(seg_tree, start));
-    } else if (1==sscanf(buf, "D %ld\n", &start)) {
+    } else if (1==sscanf(buf, "D %d\n", &start)) {
       struct seg_info *seg = find_seg(seg_tree, start);
       if (seg) {
 	destroy_seg(&seg_tree, seg);

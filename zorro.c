@@ -1,7 +1,10 @@
 /*
- * $Id: zorro.c,v 1.4 1996/07/13 21:09:55 marcus Exp $
+ * $Id: zorro.c,v 1.5 1996/07/17 16:02:10 grubba Exp $
  *
  * $Log: zorro.c,v $
+ * Revision 1.4  1996/07/13 21:09:55  marcus
+ * Minor bugfix
+ *
  * Revision 1.3  1996/07/13 20:52:46  marcus
  * Forgot MAP_FIXED in unmapboard
  *
@@ -189,7 +192,7 @@ void zorro_writebyte(u32 addr, u8 value, u32 base)
 	default:
 	  if(zorro_verbose)
 	    fprintf(stderr, "Board %d (%s): write to ExpansionControl "
-			"register %ld: %02x\n", b->number, b->name,
+			"register %d: %02x\n", b->number, b->name,
 			(offs-64)>>2, value);
       }
     } else if(b->func_writebyte)

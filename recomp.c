@@ -1,9 +1,12 @@
 /*
- * $Id: recomp.c,v 1.12 1996/07/17 00:21:45 grubba Exp $
+ * $Id: recomp.c,v 1.13 1996/07/17 16:01:45 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.12  1996/07/17 00:21:45  grubba
+ * Added USP and SSP info to the Supervisor state change output.
+ *
  * Revision 1.11  1996/07/15 20:36:20  grubba
  * Now tracks changes Supervisor mode <=> User mode.
  *
@@ -81,6 +84,8 @@
 
 #include <thread.h>
 
+#include "types.h"
+
 #include "recomp.h"
 #include "codeinfo.h"
 #include "m68k.h"
@@ -108,7 +113,7 @@ extern struct seg_info *code_tree;
 
 /* Debug level */
 
-ULONG debuglevel;
+U32 debuglevel;
 
 /*
  * Functions
@@ -119,20 +124,20 @@ void dump_m_regs(struct m_registers *regs)
   int i;
 
   for (i = 0; i < 0x10; i++) {
-    fprintf(stdout, "%c%d: %08lx, ", (i & 0x08)?'A':'D', i & 0x07,
-	    ((ULONG *)regs)[i]);
+    fprintf(stdout, "%c%d: %08x, ", (i & 0x08)?'A':'D', i & 0x07,
+	    ((U32 *)regs)[i]);
     if ((i & 0x03) == 0x03) {
       fprintf(stdout,"\n");
     }
   }
   fprintf(stdout,
-	  "usp: %08lx, ssp: %08lx, sr: %08lx, pc: %08lx\n"
-	  "low: %08lx, high: %08lx, vbr: %08lx\n",
+	  "usp: %08x, ssp: %08x, sr: %08x, pc: %08x\n"
+	  "low: %08x, high: %08x, vbr: %08x\n",
 	  regs->usp, regs->ssp, regs->sr, regs->pc,
 	  regs->low, regs->high, regs->vbr);
 }
 
-struct code_info *new_codeinfo(ULONG maddr)
+struct code_info *new_codeinfo(U32 maddr)
 {
   struct code_info *ci = calloc(sizeof(struct code_info),1);
 
@@ -142,25 +147,25 @@ struct code_info *new_codeinfo(ULONG maddr)
   return(ci);
 }
 
-ULONG raise_exception(struct m_registers *regs, USHORT *mem, ULONG vec)
+U32 raise_exception(struct m_registers *regs, U16 *mem, U32 vec)
 {
   int i;
-  ULONG sp = regs->a7;
-  ULONG osr = regs->sr;
+  U32 sp = regs->a7;
+  U32 osr = regs->sr;
   
-  fprintf(stderr, "raise_exception(0x%08lx)\n", vec);
+  fprintf(stderr, "raise_exception(0x%08x)\n", vec);
   
   fprintf(stderr, "RAW register dump:\n");
-  for (i=0; i*sizeof(ULONG)<sizeof(struct m_registers); i++) {
-    fprintf(stderr, "%02x: 0x%08lx\n", i, ((ULONG *)regs)[i]);
+  for (i=0; i*sizeof(U32)<sizeof(struct m_registers); i++) {
+    fprintf(stderr, "%02x: 0x%08x\n", i, ((U32 *)regs)[i]);
   }
 
   fprintf(stderr, "STACK dump\n");
   for (i=0; i < 64; i++) {
     if (!(i & 7)) {
-      fprintf(stderr, "\n0x%08lx\t", sp + i*sizeof(USHORT));
+      fprintf(stderr, "\n0x%08x\t", sp + i*sizeof(U16));
     }
-    fprintf(stderr, "0x%04x ", ((USHORT *)(memory + sp))[i]);
+    fprintf(stderr, "0x%04x ", ((U16 *)(memory + sp))[i]);
   }
   fprintf(stderr, "\n");
  
@@ -174,24 +179,24 @@ ULONG raise_exception(struct m_registers *regs, USHORT *mem, ULONG vec)
     regs->a7=regs->ssp;
   }
   regs->a7 -= 2;
-  *((USHORT *)(memory + regs->a7)) = regs->pc >> 16;
+  *((U16 *)(memory + regs->a7)) = regs->pc >> 16;
   regs->a7 -= 2;
-  *((USHORT *)(memory + regs->a7)) = regs->pc & 0xffff;
+  *((U16 *)(memory + regs->a7)) = regs->pc & 0xffff;
   regs->a7 -= 2;
-  *((USHORT *)(memory + regs->a7)) = osr;
+  *((U16 *)(memory + regs->a7)) = osr;
 
   abort();
 
   /* FIXME: Old standard */
-  return (*((ULONG *)(memory + (vec<<2))));
+  return (*((U32 *)(memory + (vec<<2))));
 }
 
-volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
+volatile void compile_and_go(struct m_registers *regs, U32 maddr)
 {
   struct seg_info *segment = NULL;
   struct code_info *ci = NULL;
   struct code_info *old_ci = NULL;
-  ULONG oldsr = regs->sr;
+  U32 oldsr = regs->sr;
 
   while (1) {
 
@@ -200,14 +205,14 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
     if ((!maddr) || (maddr & 0xff000001)) {
       /* BUS ERROR or ADDRESS ERROR*/
       
-      fprintf(stderr, "BUS ERROR! Bad address! 0x%08lx\n", maddr);
+      fprintf(stderr, "BUS ERROR! Bad address! 0x%08x\n", maddr);
 
       if ((maddr = raise_exception(regs,
-				   (USHORT *)memory,
+				   (U16 *)memory,
 				   VEC_BUS_ERROR + (maddr & 1))) && 0xff000001) {
 	fprintf(stderr,
 		"Double ADDRESS/BUS ERROR!\n"
-		"New address = 0x%08lx\n",
+		"New address = 0x%08x\n",
 		maddr);
 	abort();
       }
@@ -217,10 +222,10 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
 #ifdef DEBUG
     if ((regs->sr ^ oldsr) & 0x2000) {
       if (regs->sr & 0x2000) {
-	printf("Entering Supervisor mode. SR:0x%04lx SSP:0x%08lx USP:0x%08lx\n",
+	printf("Entering Supervisor mode. SR:0x%04x SSP:0x%08x USP:0x%08x\n",
 	       regs->sr, regs->ssp, regs->usp);
       } else {
-	printf("Leaving Supervisor mode. SR:0x%04lx SSP:0x%08lx USP:0x%08lx\n",
+	printf("Leaving Supervisor mode. SR:0x%04x SSP:0x%08x USP:0x%08x\n",
 	       regs->sr, regs->ssp, regs->usp);
       }
       oldsr = regs->sr;
@@ -232,10 +237,10 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
       if (debuglevel & DL_RUNTIME_TRACE) {
 	if (segment) {
 	  fprintf(stdout,
-		  "0x%08lx called from 0x%08lx, New segment [0x%08lx - 0x%08lx]\r",
+		  "0x%08x called from 0x%08x, New segment [0x%08x - 0x%08x]\r",
 		  maddr, regs->pc, segment->maddr, segment->mend);
 	} else {
-	  fprintf(stdout, "0x%08lx called from 0x%08lx\r", maddr, regs->pc);
+	  fprintf(stdout, "0x%08x called from 0x%08x\r", maddr, regs->pc);
 	}
       }
 #endif /* DEBUG */
@@ -243,12 +248,12 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
 
     if ((!segment) ||
 	(!(ci = find_ci(&segment->codeinfo, maddr)))) {
-      ULONG mend;
+      U32 mend;
       ci = new_codeinfo(maddr);
 
 #ifdef DEBUG
       if (debuglevel & DL_RUNTIME_TRACE) {
-	fprintf(stdout, "Compiling 0x%08lx, called from 0x%08lx...\n",
+	fprintf(stdout, "Compiling 0x%08x, called from 0x%08x...\n",
 		maddr, regs->pc);
       }
 #endif /* DEBUG */
@@ -257,7 +262,7 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
       if (!segment) {
 #ifdef DEBUG
 	if (debuglevel & DL_COMPILER_VERBOSE) {
-	  fprintf(stdout, "Creating new segment, maddr: %08lx, end: %08lx\n",
+	  fprintf(stdout, "Creating new segment, maddr: %08x, end: %08x\n",
 		  maddr, mend);
 	}
 #endif /* DEBUG */
@@ -268,7 +273,7 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
 	  abort();
 	}
       } else if (mend != segment->mend) {
-	fprintf(stderr, "Strange ending, orig:%08lx, new:%08lx\n", segment->mend, mend);
+	fprintf(stderr, "Strange ending, orig:%08x, new:%08x\n", segment->mend, mend);
 	abort();
       }
       /* Link it first */
@@ -305,14 +310,14 @@ void *cpu_thread_main(void *args)
     0,
     0,0xa00000
   };
-  ULONG start_addr = ((ULONG *)(memory + 0x00f80000))[1];
-  regs.a7 = regs.ssp = ((ULONG *)(memory + 0x00f80000))[0];
+  U32 start_addr = ((U32 *)(memory + 0x00f80000))[1];
+  regs.a7 = regs.ssp = ((U32 *)(memory + 0x00f80000))[0];
   regs.sr = 0x00002700;
 
   start_register_dump(&regs);
 
 #ifdef DEBUG
-  fprintf(stdout, "Starting CPU at 0x%08lx\n", start_addr);
+  fprintf(stdout, "Starting CPU at 0x%08x\n", start_addr);
 #endif /* DEBUG */
 
   compile_and_go(&regs, start_addr);
@@ -371,10 +376,10 @@ int main(int argc, char **argv)
   thr_setconcurrency(128);
 
   if ((devzero = open("/dev/zero", O_RDONLY)) >= 0) {
-    if ((memory = (UBYTE *)mmap((caddr_t)NULL, 16*1024*1024, PROT_READ|PROT_WRITE,
+    if ((memory = (U8 *)mmap((caddr_t)NULL, 16*1024*1024, PROT_READ|PROT_WRITE,
 				MAP_PRIVATE, devzero, 0))) {
       if ((romfd = open(romdump, O_RDONLY)) >= 0) {
-	if ((rommem = (UBYTE *)mmap((caddr_t)(memory + 0x00f80000), 512*1024,
+	if ((rommem = (U8 *)mmap((caddr_t)(memory + 0x00f80000), 512*1024,
 				    PROT_READ, MAP_SHARED|MAP_FIXED, romfd, 0))) {
 	  if (rommem == memory + 0x00f80000) {
 
@@ -385,10 +390,10 @@ int main(int argc, char **argv)
 #ifdef DEBUG
 	    printf("Kickstart V%d.%d\n"
 		   "exec.library V%d.%d\n",
-		   ((USHORT *)(memory + 0x00f8000c))[0],
-		   ((USHORT *)(memory + 0x00f8000c))[1],
-		   ((USHORT *)(memory + 0x00f8000c))[2],
-		   ((USHORT *)(memory + 0x00f8000c))[3]);
+		   ((U16 *)(memory + 0x00f8000c))[0],
+		   ((U16 *)(memory + 0x00f8000c))[1],
+		   ((U16 *)(memory + 0x00f8000c))[2],
+		   ((U16 *)(memory + 0x00f8000c))[3]);
 	    if (memory[0x00f80018]) {
 	      /* Old style kickstart */
 	      unsigned char *cr;
@@ -397,7 +402,7 @@ int main(int argc, char **argv)
 		cr++;
 	      }
 	      if (cr[0] == 255) {
-		cr = (unsigned char *)(((ULONG)(cr + 4)) & ~3);
+		cr = (unsigned char *)(((U32)(cr + 4)) & ~3);
 	      }
 	      printf("%s", cr);
 	    } else {

@@ -1,9 +1,12 @@
 /*
- * $Id: compiler.h,v 1.2 1996/07/08 21:21:26 grubba Exp $
+ * $Id: compiler.h,v 1.3 1996/07/17 16:01:25 grubba Exp $
  *
  * Includefile for the M68000 to Sparc recompiler.
  *
  * $Log: compiler.h,v $
+ * Revision 1.2  1996/07/08 21:21:26  grubba
+ * Added TEF_SRC_QUICK8 for better disassembly output.
+ *
  * Revision 1.1.1.1  1996/06/30 23:51:53  grubba
  * Entry into CVS
  *
@@ -24,8 +27,8 @@
  */
 
 struct tab_entry {
-  ULONG		flags;
-  ULONG		*template;
+  U32		flags;
+  U32		*template;
   const char	*mnemonic;
 };
 
@@ -101,31 +104,31 @@ struct tab_entry {
 /* Tables */
 extern struct tab_entry compiler_tab[];
 
-extern ULONG *scale_reg_tab[];
+extern U32 *scale_reg_tab[];
 
-extern ULONG *ea_tab[];
+extern U32 *ea_tab[];
 
-extern ULONG *load_eo0_tab[];
-extern ULONG *load_eo1_tab[];
+extern U32 *load_eo0_tab[];
+extern U32 *load_eo1_tab[];
 
-extern ULONG *write_back_tab[];
+extern U32 *write_back_tab[];
 
 /* Templates */
 
-extern ULONG s_fix_sr[];
+extern U32 s_fix_sr[];
 
-extern ULONG s_clobber_byte[];
-extern ULONG s_clobber_short[];
-extern ULONG s_clobber[];
+extern U32 s_clobber_byte[];
+extern U32 s_clobber_short[];
+extern U32 s_clobber[];
 
-extern ULONG s_mem_load_byte0[];
-extern ULONG s_mem_load_short0[];
-extern ULONG s_mem_load0[];
-extern ULONG s_mem_load_byte1[];
-extern ULONG s_mem_load_short1[];
-extern ULONG s_mem_load1[];
+extern U32 s_mem_load_byte0[];
+extern U32 s_mem_load_short0[];
+extern U32 s_mem_load0[];
+extern U32 s_mem_load_byte1[];
+extern U32 s_mem_load_short1[];
+extern U32 s_mem_load1[];
 
-extern ULONG s_push_o0[];
+extern U32 s_push_o0[];
 
 #endif
 

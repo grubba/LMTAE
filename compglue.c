@@ -1,9 +1,12 @@
 /*
- * $Id: compglue.c,v 1.7 1996/07/17 00:19:55 grubba Exp $
+ * $Id: compglue.c,v 1.8 1996/07/17 16:01:22 grubba Exp $
  *
  * Help functions for the M68000 to Sparc compiler.
  *
  * $Log: compglue.c,v $
+ * Revision 1.7  1996/07/17 00:19:55  grubba
+ * Minor changes.
+ *
  * Revision 1.6  1996/07/14 21:44:17  grubba
  * Added support for adding hardware dynamically.
  * Added CIAA time of day clock (50Hz).
@@ -63,6 +66,8 @@
 
 #include <stdio.h>
 
+#include "types.h"
+
 #include "recomp.h"
 #include "m68k.h"
 #include "sparc.h"
@@ -86,38 +91,38 @@
  * Globals
  */
 
-static ULONG ScratchPad[0x00080000];	/* 2Mb */
+static U32 ScratchPad[0x00080000];	/* 2Mb */
 
 /*
  * Functions
  */
 
-inline void copy_template(ULONG **code, ULONG *template)
+__inline__ void copy_template(U32 **code, U32 *template)
 {
   while (*template) {
     *((*code)++) = *(template++);
   }
 }
 
-void emit_exception(ULONG **code, ULONG pc, UBYTE vec)
+void emit_exception(U32 **code, U32 pc, U8 vec)
 {
   S_MOVI(vec, S_O2);
   copy_template(code, s_raise_exception);
 }
 
 /* Clobber a longword */
-void emit_clobber(ULONG **code)
+void emit_clobber(U32 **code)
 {
   copy_template(code, s_clobber);
 }
 
 /* Clobber a short */
-void emit_clobber_short(ULONG **code)
+void emit_clobber_short(U32 **code)
 {
   copy_template(code, s_clobber_short);
 }
 
-void emit_clobber_byte(ULONG **code, UBYTE sdst, UBYTE sval)
+void emit_clobber_byte(U32 **code, U8 sdst, U8 sval)
 {
   copy_template(code, s_clobber_byte);
 }
@@ -134,17 +139,17 @@ void break_me(void)
  */
 
 
-void calc_ea(ULONG **code, ULONG *pc, ULONG flags, ULONG oldpc)
+void calc_ea(U32 **code, U32 *pc, U32 flags, U32 oldpc)
 {
-  USHORT *mem = (USHORT *)memory;
+  U16 *mem = (U16 *)memory;
 
   if ((flags & 0x0030) && ((flags & 0x003f) != 0x003c)) {
     /* Not Register direct or immediate */
     if ((flags & 0x003f) == 0x39) {
       /* (d32).L */
-      ULONG val = mem[(*pc)++];
+      U32 val = mem[(*pc)++];
       val = (val<<16) | mem[(*pc)++];
-      DPRINTF(("(0x%08lx).L ", val));
+      DPRINTF(("(0x%08x).L ", val));
       if ((val & 0xfffff000) && ((val & 0xfffff000) != 0xfffff000)) {
 	/* sethi %hi(val), %ea */
 	*((*code)++) = 0x2b000000 | (val >> 10);
@@ -159,25 +164,25 @@ void calc_ea(ULONG **code, ULONG *pc, ULONG flags, ULONG oldpc)
     } else if (((flags & 0x0038) == 0x30) ||
 	       ((flags & 0x003f) == 0x3b)) {
       /* (d8, An, Xn), (d8, PC, Xn) */
-      ULONG val = mem[(*pc)++];
+      U32 val = mem[(*pc)++];
 #ifdef DEBUG
       if ((flags & 0x38) == 0x30) {
 	if (val & 0x80) {
-	  DPRINTF(("(-0x%02lx, A%ld, ", (0x100 - (val & 0xff)), flags & 0x07));
+	  DPRINTF(("(-0x%02x, A%d, ", (0x100 - (val & 0xff)), flags & 0x07));
 	} else {
-	  DPRINTF(("(0x%02lx, A%ld, ", val & 0xff, flags & 0x07));
+	  DPRINTF(("(0x%02x, A%d, ", val & 0xff, flags & 0x07));
 	}
       } else {
 	if (val & 0x80) {
-	  DPRINTF(("(0x%08lx, PC, ", oldpc + (val & 0xff) - 0x100));
+	  DPRINTF(("(0x%08x, PC, ", oldpc + (val & 0xff) - 0x100));
 	} else {
-	  DPRINTF(("(0x%08lx, PC, ", oldpc + (val & 0xff)));
+	  DPRINTF(("(0x%08x, PC, ", oldpc + (val & 0xff)));
 	}
       }
       if (val & 0x8000) {
-	DPRINTF(("A%ld", (val & 0x7000)>>12));
+	DPRINTF(("A%d", (val & 0x7000)>>12));
       } else {
-	DPRINTF(("D%ld", (val & 0x7000)>>12));
+	DPRINTF(("D%d", (val & 0x7000)>>12));
       }
       if (val & 0x0800) {
 	DPRINTF((".L"));
@@ -206,26 +211,26 @@ void calc_ea(ULONG **code, ULONG *pc, ULONG flags, ULONG oldpc)
       *((*code)++) = 0xaa056000 | val;
     } else if ((flags & 0x0038) > 0x20) {
       /* (d16,An), (d16).W, (d16,PC) */
-      ULONG val = mem[(*pc)++];
+      U32 val = mem[(*pc)++];
 
 #ifdef DEBUG
       if ((flags & 0x0038) == 0x0028) {
 	if (val & 0x8000) {
-	  DPRINTF(("(-0x%04lx, A%ld)", 0x00010000 - val, flags & 0x0007));
+	  DPRINTF(("(-0x%04x, A%d)", 0x00010000 - val, flags & 0x0007));
 	} else {
-	  DPRINTF(("(0x%04lx, A%ld)", val, flags & 0x0007));
+	  DPRINTF(("(0x%04x, A%d)", val, flags & 0x0007));
 	}
       } else if ((flags & 0x003f) == 0x003a) {
 	if (val & 0x8000) {
-	  DPRINTF(("(0x%08lx, PC)", oldpc + val - 0xfffe));
+	  DPRINTF(("(0x%08x, PC)", oldpc + val - 0xfffe));
 	} else {
-	  DPRINTF(("(0x%08lx, PC)", oldpc + val + 2));
+	  DPRINTF(("(0x%08x, PC)", oldpc + val + 2));
 	}
       } else {
 	if (val & 0x8000) {
-	  DPRINTF(("(-0x%04lx).W", 0x00010000 - val));
+	  DPRINTF(("(-0x%04x).W", 0x00010000 - val));
 	} else {
-	  DPRINTF(("(0x%04lx).W", val));
+	  DPRINTF(("(0x%04x).W", val));
 	}
       }
 #endif /* DEBUG */
@@ -258,13 +263,13 @@ void calc_ea(ULONG **code, ULONG *pc, ULONG flags, ULONG oldpc)
     else {
       switch(flags & 0x38) {
       case 0x10:
-	DPRINTF(("(A%ld)", flags & 0x07));
+	DPRINTF(("(A%d)", flags & 0x07));
 	break;
       case 0x18:
-	DPRINTF(("(A%ld)+", flags & 0x07));
+	DPRINTF(("(A%d)+", flags & 0x07));
 	break;
       case 0x20:
-	DPRINTF(("-(A%ld)", flags & 0x07));
+	DPRINTF(("-(A%d)", flags & 0x07));
 	break;
       }
     }
@@ -278,17 +283,17 @@ void calc_ea(ULONG **code, ULONG *pc, ULONG flags, ULONG oldpc)
  * Main compilation function
  */
 
-ULONG compile(struct code_info *ci)
+U32 compile(struct code_info *ci)
 {
-  ULONG pc = ci->maddr>>1;
-  ULONG *code = ScratchPad;
-  ULONG oldpc;
-  ULONG flags;
-  ULONG regs = 0;
-  USHORT *mem = (USHORT *)memory;
-  USHORT opcode;
+  U32 pc = ci->maddr>>1;
+  U32 *code = ScratchPad;
+  U32 oldpc;
+  U32 flags;
+  U32 regs = 0;
+  U16 *mem = (U16 *)memory;
+  U16 opcode;
 
-  asm("	flush	%g0\n");	/* Flush instruction cache */
+  __asm__("	flush	%g0\n");	/* Flush instruction cache */
 
   copy_template(&code, s_pre_amble);
 
@@ -296,13 +301,13 @@ ULONG compile(struct code_info *ci)
     oldpc = pc;
     opcode = mem[pc++];
 
-    DPRINTF(("\nPC:%08lx\tOpcode:%04x\tMnemonic:%s\n"
-	     "\tFlags:%08lx\tTemplate:%08lx\n",
+    DPRINTF(("\nPC:%08x\tOpcode:%04x\tMnemonic:%s\n"
+	     "\tFlags:%08x\tTemplate:%08x\n",
 	     (pc - 1)<<1, opcode, compiler_tab[opcode].mnemonic,
-	     compiler_tab[opcode].flags, (ULONG)compiler_tab[opcode].template));
+	     compiler_tab[opcode].flags, (U32)compiler_tab[opcode].template));
 #ifdef DEBUG
     {
-      extern ULONG opcode_4afc[];
+      extern U32 opcode_4afc[];
       if (compiler_tab[opcode].template == opcode_4afc) {
 	printf("!! ILLEGAL OPCODE (0x%04x, \"%s\")!!\n",
 	       opcode, compiler_tab[opcode].mnemonic);
@@ -347,7 +352,7 @@ ULONG compile(struct code_info *ci)
 	{
 	  int i = 0;
 	  int d = 1;
-	  ULONG regs2;
+	  U32 regs2;
 
 	  if ((flags & 0x0038) == 0x0020) {
 	    /* Other direction in predecrement mode */
@@ -370,7 +375,7 @@ ULONG compile(struct code_info *ci)
 	}
 #endif /* DEBUG */
       } else {
-	ULONG newflags = ((flags & (TEF_SRC_MASK | TEF_SRC_SIZE))>>TEF_SRC_SHIFT);
+	U32 newflags = ((flags & (TEF_SRC_MASK | TEF_SRC_SIZE))>>TEF_SRC_SHIFT);
 
 	if ((flags & TEF_MOVEM) && (flags & TEF_WRITE_BACK)) {
 	  calc_ea(&code, &pc, ((opcode & 0x0007) | 0x0010), oldpc*2);
@@ -385,7 +390,7 @@ ULONG compile(struct code_info *ci)
 	    switch (flags & TEF_SRC_SIZE) {
 	    case TEF_SRC_BYTE:
 	      {
-		USHORT immop = mem[pc++] & 0xff;
+		U16 immop = mem[pc++] & 0xff;
 
 		/* mov immop, %acc1 */
 		if (immop & 0x80) {
@@ -401,7 +406,7 @@ ULONG compile(struct code_info *ci)
 	    break;
 	    case TEF_SRC_WORD:
 	      {
-		USHORT immop = mem[pc++];
+		U16 immop = mem[pc++];
 		if (immop & 0x8000) {
 		  /* Negative */
 		  DPRINTF(("#-0x%04x.W", (0x8000 - immop) & 0x7fff));
@@ -431,9 +436,9 @@ ULONG compile(struct code_info *ci)
 	    break;
 	    case TEF_SRC_LONG:
 	      {
-		ULONG immop = mem[pc++];
+		U32 immop = mem[pc++];
 		immop = (immop << 0x10) | mem[pc++];
-		DPRINTF(("#0x%08lx.L", immop));
+		DPRINTF(("#0x%08x.L", immop));
 		/* sethi %hi(immop), %acc1 */
 		*(code++) = 0x27000000 | (immop >> 10);
 		/* or %lo(immop), %acc1, %acc1 */
@@ -441,14 +446,14 @@ ULONG compile(struct code_info *ci)
 	      }
 	    break;
 	    default:
-	      fprintf(stderr, "Error in immediate operand for opcode 0x%04x, 0x%08lx!\n", opcode, flags);
+	      fprintf(stderr, "Error in immediate operand for opcode 0x%04x, 0x%08x!\n", opcode, flags);
 	      abort();
 	      break;
 	    }
 	  } else {
 #ifdef DEBUG
 	    if (!(newflags & 0x0030)) {
-	      DPRINTF(("%c%ld", ((newflags & 0x0008)?'A':'D'), newflags & 0x0007));
+	      DPRINTF(("%c%d", ((newflags & 0x0008)?'A':'D'), newflags & 0x0007));
 	    }
 #endif /* DEBUG */
 	    copy_template(&code, load_eo1_tab[newflags]);
@@ -467,7 +472,7 @@ ULONG compile(struct code_info *ci)
 #ifdef DEBUG
 	{
 	  int i = 0;
-	  ULONG regs2;
+	  U32 regs2;
 	  for (regs2 = regs;regs2;regs2>>=1, i++) {
 	    if (regs2 & 1) {
 	      if (i < 8) {
@@ -495,7 +500,7 @@ ULONG compile(struct code_info *ci)
 	    switch (flags & TEF_DST_SIZE) {
 	    case TEF_DST_BYTE:
 	      {
-		USHORT immop = mem[pc++] & 0xff;
+		U16 immop = mem[pc++] & 0xff;
 
 		/* mov immop, %acc0 */
 		if (immop & 0x80) {
@@ -511,7 +516,7 @@ ULONG compile(struct code_info *ci)
 	    break;
 	    case TEF_DST_WORD:
 	      {
-		USHORT immop = mem[pc++];
+		U16 immop = mem[pc++];
 		if (immop & 0x8000) {
 		  /* Negative */
 		  DPRINTF(("#-0x%04x.W, ", 0x8000 - immop));
@@ -541,8 +546,8 @@ ULONG compile(struct code_info *ci)
 	    break;
 	    case TEF_DST_LONG:
 	      {
-		ULONG immop = mem[pc++];
-		DPRINTF(("#0x%08lx.L, ", immop));
+		U32 immop = mem[pc++];
+		DPRINTF(("#0x%08x.L, ", immop));
 		immop = (immop << 0x10) | mem[pc++];
 		/* sethi %hi(immop), %acc0 */
 		*(code++) = 0x29000000 | (immop >> 10);
@@ -551,14 +556,14 @@ ULONG compile(struct code_info *ci)
 	      }
 	    break;
 	    default:
-	      fprintf(stderr, "Error in immediate operand for opcode 0x%04x, 0x%08lx!\n", opcode, flags);
+	      fprintf(stderr, "Error in immediate operand for opcode 0x%04x, 0x%08x!\n", opcode, flags);
 	      abort();
 	      break;
 	    }
 	  } else {
 #ifdef DEBUG
 	    if (!(flags & 0x0030)) {
-	      DPRINTF(("%c%ld", ((flags & 0x0008)?'A':'D'), flags & 0x0007));
+	      DPRINTF(("%c%d", ((flags & 0x0008)?'A':'D'), flags & 0x0007));
 	    }
 #endif /* DEBUG */
 	    copy_template(&code, load_eo0_tab[flags & 0x00ff]);
@@ -622,7 +627,7 @@ ULONG compile(struct code_info *ci)
 	int moffset = 0;
 	if (flags & TEF_WRITE_BACK) {
 	  /* Reverse the bits */
-	  ULONG newregs = 0;
+	  U32 newregs = 0;
 	  int i;
 	  for (i = 0; i < 16; i++) {
 	    newregs <<= 1;
@@ -676,7 +681,7 @@ ULONG compile(struct code_info *ci)
       } else {
 #ifdef DEBUG
 	if ((!(flags & TEF_DST_LOAD)) && (!(flags & 0x0030))) {
-	  DPRINTF(("%c%ld", ((flags & 0x0008)?'A':'D'), (flags & 0x0007)));
+	  DPRINTF(("%c%d", ((flags & 0x0008)?'A':'D'), (flags & 0x0007)));
 	}
 #endif /* DEBUG */
 	copy_template(&code, write_back_tab[flags & 0x00ff]);
@@ -693,7 +698,7 @@ ULONG compile(struct code_info *ci)
   } while (!(flags & TEF_TERMINATE));
 #ifdef DEBUG
   {
-    extern ULONG opcode_4afc[];
+    extern U32 opcode_4afc[];
     if (compiler_tab[opcode].template == opcode_4afc) {
       printf("!! ILLEGAL OPCODE !!\n");
       abort();

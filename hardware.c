@@ -1,9 +1,13 @@
 /*
- * $Id: hardware.c,v 1.8 1996/07/17 00:13:05 grubba Exp $
+ * $Id: hardware.c,v 1.9 1996/07/17 16:01:31 grubba Exp $
  *
  * Hardware emulation for the M68000 to Sparc recompiler.
  *
  * $Log: hardware.c,v $
+ * Revision 1.8  1996/07/17 00:13:05  grubba
+ * Fixed a sorting bug in add_hw() -- it didn't sort the first element.
+ * Added name arg to add_hw().
+ *
  * Revision 1.7  1996/07/14 21:44:21  grubba
  * Added support for adding hardware dynamically.
  * Added CIAA time of day clock (50Hz).
@@ -61,53 +65,53 @@
  * Hardware functions
  */
 
-ULONG read_bad(ULONG addr, ULONG base)
+U32 read_bad(U32 addr, U32 base)
 {
   if (addr <= 0x01000000L) {
     /* To avoid a lot of debug output during ROMTag scan. */
-    fprintf(stdout, "read_bad(0x%08lx, 0x%08lx)\n", addr, base);
+    fprintf(stdout, "read_bad(0x%08x, 0x%08x)\n", addr, base);
   }
   return(0);
 }
 
-void write_bad(ULONG addr, ULONG val, ULONG base)
+void write_bad(U32 addr, U32 val, U32 base)
 {
-  fprintf(stdout, "write_bad(0x%08lx, 0x%08lx, 0x%08lx)\n", addr, val, base);
+  fprintf(stdout, "write_bad(0x%08x, 0x%08x, 0x%08x)\n", addr, val, base);
 }
 
-ULONG read_custom(ULONG addr, ULONG base)
+U32 read_custom(U32 addr, U32 base)
 {
-  ULONG val;
+  U32 val;
 
-  fprintf(stdout, "read_custom(0x%08lx, 0x%08lx)\n", addr, base);
+  fprintf(stdout, "read_custom(0x%08x, 0x%08x)\n", addr, base);
 
-  val = ((SHORT *)memory)[addr>>1];
+  val = ((S16 *)memory)[addr>>1];
 
   if (((addr - 0xdff000) >= 0x180) && ((addr - 0xdff000) < (0x180 + 0x20))) {
-    fprintf(stdout, "Reading color %ld (0x%04lx)\n",
+    fprintf(stdout, "Reading color %d (0x%04x)\n",
 	    ((addr - 0xdff000) - 0x180), (val & 0xffff));
   } else if (addr == 0xdff006) {
-    fprintf(stdout, "Reading VHPOSR 0x%08lx\n", ((ULONG *)memory)[0xdff004>>2]);
-    ((ULONG *)memory)[0xdff004>>2] += 0x00000101;
-    ((ULONG *)memory)[0xdff004>>2] &= 0x0001ffff;
+    fprintf(stdout, "Reading VHPOSR 0x%08x\n", ((U32 *)memory)[0xdff004>>2]);
+    ((U32 *)memory)[0xdff004>>2] += 0x00000101;
+    ((U32 *)memory)[0xdff004>>2] &= 0x0001ffff;
   }
   return(val);
 }
 
-void write_custom(ULONG addr, ULONG val, ULONG base)
+void write_custom(U32 addr, U32 val, U32 base)
 {
-  fprintf(stdout, "write_custom(0x%08lx, 0x%08lx, 0x%08lx)\n", addr, val, base);
+  fprintf(stdout, "write_custom(0x%08x, 0x%08x, 0x%08x)\n", addr, val, base);
 
   if (((addr - 0xdff000) >= 0x180) && ((addr - 0xdff000) < (0x180 + 0x20))) {
-    fprintf(stdout, "Setting color %ld to 0x%04lx\n",
+    fprintf(stdout, "Setting color %d to 0x%04x\n",
 	    ((addr - 0xdff000) - 0x180), (val & 0xffff));
   }
-  ((USHORT *)memory)[addr>>1] = val;
+  ((U16 *)memory)[addr>>1] = val;
 }
 
-void reset_custom(ULONG base)
+void reset_custom(U32 base)
 {
-  fprintf(stdout, "Custom base is 0x%08lx\n", base);
+  fprintf(stdout, "Custom base is 0x%08x\n", base);
 }
 
 void init_custom(void)
@@ -143,16 +147,16 @@ static const char *auto_conf_fields[] = {
   "ec_Shutup",
 };
 
-ULONG read_conf(ULONG addr, ULONG base)
+U32 read_conf(U32 addr, U32 base)
 {
-  ULONG addr2 = addr & 0xffff;
+  U32 addr2 = addr & 0xffff;
 
   if (addr2 < 0x0050) {
-    fprintf(stdout, "read_conf 0x%08lx (%s)\n",
+    fprintf(stdout, "read_conf 0x%08x (%s)\n",
 	    addr,
 	    auto_conf_fields[addr2>>2]);
   } else {
-    fprintf(stdout, "read_conf 0x%08lx (Unknown)\n", addr);
+    fprintf(stdout, "read_conf 0x%08x (Unknown)\n", addr);
   }
   return(0);
 }
@@ -160,26 +164,26 @@ ULONG read_conf(ULONG addr, ULONG base)
 #define read_conf_w	read_conf
 #define read_conf_b	read_conf
 
-void write_conf(ULONG addr, ULONG val, ULONG base)
+void write_conf(U32 addr, U32 val, U32 base)
 {
-  ULONG addr2 = addr & 0xffff;
+  U32 addr2 = addr & 0xffff;
 
   if (addr2 < 0x0050) {
-    fprintf(stdout, "write_conf 0x%08lx (%s), 0x%08lx\n",
+    fprintf(stdout, "write_conf 0x%08x (%s), 0x%08x\n",
 	    addr,
 	    auto_conf_fields[addr2>>2],
 	    val);
   } else {
-    fprintf(stdout, "read_conf 0x%08lx (Unknown), 0x%08lx\n", addr, val);
+    fprintf(stdout, "read_conf 0x%08x (Unknown), 0x%08x\n", addr, val);
   }
 }
 
 #define write_conf_w	write_conf
 #define write_conf_b	write_conf
 
-void reset_conf(ULONG base)
+void reset_conf(U32 base)
 {
-  fprintf(stdout, "Autoconfig space at 0x%08lx\n", base);
+  fprintf(stdout, "Autoconfig space at 0x%08x\n", base);
 }
 
 #else
@@ -192,13 +196,13 @@ void reset_conf(ULONG base)
 #define write_conf_b  zorro_writebyte
 #define reset_conf    zorro_reset
 
-extern ULONG zorro_readlong(ULONG, ULONG);
-extern ULONG zorro_readword(ULONG, ULONG);
-extern ULONG zorro_readbyte(ULONG, ULONG);
-extern void zorro_writelong(ULONG, ULONG, ULONG);
-extern void zorro_writeword(ULONG, ULONG, ULONG);
-extern void zorro_writebyte(ULONG, ULONG, ULONG);
-extern void zorro_reset(ULONG);
+extern U32 zorro_readlong(U32, U32);
+extern U32 zorro_readword(U32, U32);
+extern U32 zorro_readbyte(U32, U32);
+extern void zorro_writelong(U32, U32, U32);
+extern void zorro_writeword(U32, U32, U32);
+extern void zorro_writebyte(U32, U32, U32);
+extern void zorro_reset(U32);
 
 #endif
 
@@ -210,29 +214,29 @@ void init_zorro(void)
 	 zorro_reset);
 }
 
-ULONG read_slow_w(ULONG addr, ULONG base)
+U32 read_slow_w(U32 addr, U32 base)
 {
-  return(*((SHORT *)(memory + addr)));
+  return(*((S16 *)(memory + addr)));
 }
 
-void write_slow_w(ULONG addr, ULONG val, ULONG base)
+void write_slow_w(U32 addr, U32 val, U32 base)
 {
-  *((USHORT *)(memory + addr)) = val;
+  *((U16 *)(memory + addr)) = val;
 }
 
-ULONG read_slow_b(ULONG addr, ULONG base)
+U32 read_slow_b(U32 addr, U32 base)
 {
-  return(*((BYTE *)(memory + addr)));
+  return(*((S8 *)(memory + addr)));
 }
 
-void write_slow_b(ULONG addr, ULONG val, ULONG base)
+void write_slow_b(U32 addr, U32 val, U32 base)
 {
   *(memory + addr) = val;
 }
 
-void reset_slow(ULONG base)
+void reset_slow(U32 base)
 {
-  fprintf(stdout, "Ranger (SLOW) memory at 0x%08lx\n", base);
+  fprintf(stdout, "Ranger (SLOW) memory at 0x%08x\n", base);
 }
 
 void init_slow(void)
@@ -243,20 +247,20 @@ void init_slow(void)
 	 reset_slow);
 }
 
-ULONG read_rtc(ULONG addr, ULONG base)
+U32 read_rtc(U32 addr, U32 base)
 {
-  fprintf(stdout, "read_rtc 0x%08lx\n", addr);
+  fprintf(stdout, "read_rtc 0x%08x\n", addr);
   return(0);
 }
 
-void write_rtc(ULONG addr, ULONG val, ULONG base)
+void write_rtc(U32 addr, U32 val, U32 base)
 {
-  fprintf(stdout, "write_rtc 0x%08lx, 0x%08lx\n", addr, val);
+  fprintf(stdout, "write_rtc 0x%08x, 0x%08x\n", addr, val);
 }
 
-void reset_rtc(ULONG base)
+void reset_rtc(U32 base)
 {
-  fprintf(stdout, "Real time clock at 0x%08lx\n", base);
+  fprintf(stdout, "Real time clock at 0x%08x\n", base);
 }
 
 void init_rtc(void)
@@ -276,15 +280,15 @@ void init_rtc(void)
  */
 
 struct hw {
-  ULONG start, end;
+  U32 start, end;
   const char *name;
-  ULONG (*read)(ULONG addr, ULONG base);
-  ULONG (*read_short)(ULONG addr, ULONG base);
-  ULONG (*read_byte)(ULONG addr, ULONG base);
-  void (*write)(ULONG addr, ULONG val, ULONG base);
-  void (*write_short)(ULONG addr, ULONG val, ULONG base);
-  void (*write_byte)(ULONG addr, ULONG val, ULONG base);
-  void (*reset)(ULONG base);
+  U32 (*read)(U32 addr, U32 base);
+  U32 (*read_short)(U32 addr, U32 base);
+  U32 (*read_byte)(U32 addr, U32 base);
+  void (*write)(U32 addr, U32 val, U32 base);
+  void (*write_short)(U32 addr, U32 val, U32 base);
+  void (*write_byte)(U32 addr, U32 val, U32 base);
+  void (*reset)(U32 base);
 };
 
 /*
@@ -293,20 +297,6 @@ struct hw {
 
 struct hw *hardware = NULL;
 int num_hw_banks = 0;
-
-#if 0
-struct hw hardware[] = {
-  { 0x00bfd000, 0x00bfe000, read_bad, read_bad, read_cia, write_bad, write_bad, write_cia, reset_cia },
-  { 0x00bfe000, 0x00bff000, read_bad, read_bad, read_cia, write_bad, write_bad, write_cia, reset_cia },
-  { 0x00c00000, 0x00dc0000, NULL, read_slow_w, read_slow_b, NULL, write_slow_w, write_slow_b, reset_slow },
-  { 0x00dc0000, 0x00dd0000, read_rtc, read_rtc, read_rtc, write_rtc, write_rtc, write_rtc, reset_rtc },
-  { 0x00dff000, 0x00e00000, NULL, read_custom, read_bad, write_bad, write_custom, write_bad, reset_custom },
-  { 0x00e80000, 0x00e8ffff, read_conf, read_conf_w, read_conf_b, write_conf, write_conf_w, write_conf_b, reset_conf },
-};
-
-const int num_hw_banks = 6;
-
-#endif /* 0 */
 
 /*
  * Functions
@@ -327,7 +317,7 @@ void reset_hw(void)
   fprintf(stdout, "Go!\n");
 }
 
-inline int find_hw(ULONG maddr)
+__inline__ int find_hw(U32 maddr)
 {
   int b=0;
   int t=num_hw_banks;
@@ -353,7 +343,7 @@ inline int find_hw(ULONG maddr)
   return(~0);
 }
 
-ULONG load_hw_byte(ULONG maddr)
+U32 load_hw_byte(U32 maddr)
 {
   int i = find_hw(maddr);
 
@@ -363,7 +353,7 @@ ULONG load_hw_byte(ULONG maddr)
   return(read_bad(maddr, 0));
 }
 
-ULONG load_hw_short(ULONG maddr)
+U32 load_hw_short(U32 maddr)
 {
   int i = find_hw(maddr);
 
@@ -373,7 +363,7 @@ ULONG load_hw_short(ULONG maddr)
   return(read_bad(maddr, 0));
 }
 
-ULONG load_hw(ULONG maddr)
+U32 load_hw(U32 maddr)
 {
   int i = find_hw(maddr);
 
@@ -381,7 +371,7 @@ ULONG load_hw(ULONG maddr)
     if (hardware[i].read) {
       return(hardware[i].read(maddr, hardware[i].start));
     } else {
-      ULONG res = hardware[i].read_short(maddr, hardware[i].start);
+      U32 res = hardware[i].read_short(maddr, hardware[i].start);
       res <<= 16;
       return (res | (hardware[i].read_short(maddr + 2, hardware[i].start) & 0xffff));
     }
@@ -389,7 +379,7 @@ ULONG load_hw(ULONG maddr)
   return(read_bad(maddr, 0));
 }
 
-void store_hw_byte(ULONG maddr, UBYTE val)
+void store_hw_byte(U32 maddr, U8 val)
 {
   int i = find_hw(maddr);
 
@@ -400,7 +390,7 @@ void store_hw_byte(ULONG maddr, UBYTE val)
   }
 }
 
-void store_hw_short(ULONG maddr, USHORT val)
+void store_hw_short(U32 maddr, U16 val)
 {
   int i = find_hw(maddr);
 
@@ -411,7 +401,7 @@ void store_hw_short(ULONG maddr, USHORT val)
   }
 }
 
-void store_hw(ULONG maddr, ULONG val)
+void store_hw(U32 maddr, U32 val)
 {
   int i = find_hw(maddr);
 
@@ -427,27 +417,27 @@ void store_hw(ULONG maddr, ULONG val)
   }
 }
 
-ULONG clobber_code_byte(ULONG maddr, UBYTE val)
+U32 clobber_code_byte(U32 maddr, U8 val)
 {
-  fprintf(stdout, "clobber_code_byte(0x%08lx, 0x%02x)\n", maddr, val);
+  fprintf(stdout, "clobber_code_byte(0x%08x, 0x%02x)\n", maddr, val);
   return (0);
 }
 
-ULONG clobber_code_short(ULONG maddr, USHORT val)
+U32 clobber_code_short(U32 maddr, U16 val)
 {
-  fprintf(stdout, "clobber_code_short(0x%08lx, 0x%04x)\n", maddr, val);
+  fprintf(stdout, "clobber_code_short(0x%08x, 0x%04x)\n", maddr, val);
   return (0);
 }
 
-void add_hw(ULONG start, ULONG size,
+void add_hw(U32 start, U32 size,
 	    const char *name,
-	    ULONG (*read_long)(ULONG, ULONG),
-	    ULONG (*read_word)(ULONG, ULONG),
-	    ULONG (*read_byte)(ULONG, ULONG),
-	    void (*write_long)(ULONG, ULONG, ULONG),
-	    void (*write_word)(ULONG, ULONG, ULONG),
-	    void (*write_byte)(ULONG, ULONG, ULONG),
-	    void (*reset)(ULONG))
+	    U32 (*read_long)(U32, U32),
+	    U32 (*read_word)(U32, U32),
+	    U32 (*read_byte)(U32, U32),
+	    void (*write_long)(U32, U32, U32),
+	    void (*write_word)(U32, U32, U32),
+	    void (*write_byte)(U32, U32, U32),
+	    void (*reset)(U32))
 {
   int i;
 
@@ -469,7 +459,7 @@ void add_hw(ULONG start, ULONG size,
       hardware[i + 1] = hardware[i];
     } else {
       if (hardware[i].end > start) {
-	printf("Overlapping hardware registers (0x%08lx - 0x%08lx) and (0x%08lx - 0x%08lx)!\n",
+	printf("Overlapping hardware (0x%08x - 0x%08x) and (0x%08x - 0x%08x)!\n",
 	       start, start + size, hardware[i].start, hardware[i].end);
 	abort();
       }
@@ -521,7 +511,7 @@ void init_hardware(void)
   }
   printf("\nHardware map:\n");
   for (i = 0; i < num_hw_banks; i++) {
-    printf(" 0x%08lx - 0x%08lx : \"%s\"\n",
+    printf(" 0x%08x - 0x%08x : \"%s\"\n",
 	   hardware[i].start, hardware[i].end, hardware[i].name);
   }
 }

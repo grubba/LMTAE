@@ -1,7 +1,12 @@
 /*
- * $Id: recomp.h,v 1.4 1996/07/13 19:32:12 grubba Exp $
+ * $Id: recomp.h,v 1.5 1996/07/17 16:01:48 grubba Exp $
  *
  * $Log: recomp.h,v $
+ * Revision 1.4  1996/07/13 19:32:12  grubba
+ * Now defaults to very little debuginfo.
+ * Added (un|set)patch().
+ * Patches added to MakeLibrary(), MakeFunctions(), Abort() and AddLibrary().
+ *
  * Revision 1.3  1996/07/12 21:11:52  grubba
  * raise_exception() might work a bit better now.
  * Although at the moment it does an abort() instead of returning.
@@ -36,13 +41,9 @@
 #define RECOMP_H
 
 /* Common types used */
-
-typedef long LONG;
-typedef unsigned long ULONG;
-typedef short SHORT;
-typedef unsigned short USHORT;
-typedef signed char BYTE;
-typedef unsigned char UBYTE;
+#ifndef TYPES_H
+#include "types.h"
+#endif /* TYPES_H */
 
 #ifndef NULL
 #define NULL ((void *)0)
@@ -51,12 +52,12 @@ typedef unsigned char UBYTE;
 /*
  * The global m68000 memory
  */
-extern unsigned char *memory;
+extern U8 *memory;
 
 /*
  * The compiler lookup-table
  */
-extern int (*comp_tab[])(ULONG *, ULONG **, USHORT *, USHORT);
+extern U32 (*comp_tab[])(U32 *, U32 **, U16 *, U16);
 
 /*
  * Debug level
@@ -64,7 +65,7 @@ extern int (*comp_tab[])(ULONG *, ULONG **, USHORT *, USHORT);
  * This is a bitfield.
  */
 
-extern ULONG debuglevel;
+extern U32 debuglevel;
 
 #define DL_COMPILER_VERBOSE	1
 #define DL_COMPILER_DISASSEMBLY	2
@@ -77,27 +78,27 @@ extern ULONG debuglevel;
 struct m_registers;
 struct code_info;
 
-struct code_info *new_codeinfo(ULONG maddr);
+struct code_info *new_codeinfo(U32 maddr);
 
-ULONG raise_exception(struct m_registers *regs, USHORT *mem, ULONG vec);
-volatile void compile_and_go(struct m_registers *regs, ULONG maddr);
-ULONG compile(struct code_info *ci);
-void disassemble(ULONG start, ULONG end);
+U32 raise_exception(struct m_registers *regs, U16 *mem, U32 vec);
+volatile void compile_and_go(struct m_registers *regs, U32 maddr);
+U32 compile(struct code_info *ci);
+void disassemble(U32 start, U32 end);
 
 void reset_hw(void);
 
-ULONG read_hw_byte(ULONG maddr);
-ULONG read_hw_short(ULONG maddr);
-ULONG read_hw(ULONG maddr);
+U32 read_hw_byte(U32 maddr);
+U32 read_hw_short(U32 maddr);
+U32 read_hw(U32 maddr);
 
-void store_hw_byte(ULONG maddr, UBYTE val);
-void store_hw_short(ULONG maddr, USHORT val);
-void store_hw(ULONG maddr, ULONG val);
+void store_hw_byte(U32 maddr, U8 val);
+void store_hw_short(U32 maddr, U16 val);
+void store_hw(U32 maddr, U32 val);
 
-ULONG clobber_code_byte(ULONG maddr, UBYTE val);
-ULONG clobber_code_short(ULONG maddr, USHORT val);
-void clobber_code(ULONG maddr, ULONG val);
+U32 clobber_code_byte(U32 maddr, U8 val);
+U32 clobber_code_short(U32 maddr, U16 val);
+void clobber_code(U32 maddr, U32 val);
 
-void emit_exception(ULONG **code, ULONG pc, UBYTE vec);
+void emit_exception(U32 **code, U32 pc, U8 vec);
 
 #endif /* RECOMP_H */

@@ -1,9 +1,14 @@
 /*
- * $Id: codeinfo.h,v 1.3 1996/07/13 19:32:23 grubba Exp $
+ * $Id: codeinfo.h,v 1.4 1996/07/17 16:01:09 grubba Exp $
  *
  * Functions for handling segments of code.
  *
  * $Log: codeinfo.h,v $
+ * Revision 1.3  1996/07/13 19:32:23  grubba
+ * Now defaults to very little debuginfo.
+ * Added (un|set)patch().
+ * Patches added to MakeLibrary(), MakeFunctions(), Abort() and AddLibrary().
+ *
  * Revision 1.2  1996/07/01 19:16:40  grubba
  * Implemented ASL and ASR.
  * Changed semantics for new_codeinfo(), it doesn't allocate space for the code.
@@ -34,6 +39,14 @@
 #define CODEINFO_H
 
 /*
+ * Includes
+ */
+
+#ifndef TYPES_H
+#include "types.h"
+#endif /* TYPES_H */
+
+/*
  * Globals
  */
 
@@ -47,7 +60,7 @@ extern struct seg_info *code_tree;
 
 struct seg_info {
   struct seg_info *parent, *left, *right;
-  ULONG mmin, maddr, mend, mmax;
+  U32 mmin, maddr, mend, mmax;
   struct code_info *codeinfo;
 };
 
@@ -55,11 +68,11 @@ struct seg_info {
 
 struct code_info {
   struct code_info *next;
-  ULONG maddr;
-  ULONG flags;
-  ULONG (*code)(struct m_registers *, void *);	/* Returns the next PC */
-  ULONG *codeend;
-  ULONG checksum;
+  U32 maddr;
+  U32 flags;
+  U32 (*code)(struct m_registers *, void *);	/* Returns the next PC */
+  U32 *codeend;
+  U32 checksum;
 };
 
 #define CIF_LOCKED	1
@@ -69,10 +82,10 @@ struct code_info {
  * Prototypes
  */
 
-struct seg_info *find_seg(struct seg_info *root, ULONG maddr);
-struct seg_info *insert_seg(struct seg_info **root, ULONG maddr, ULONG mend);
+struct seg_info *find_seg(struct seg_info *root, U32 maddr);
+struct seg_info *insert_seg(struct seg_info **root, U32 maddr, U32 mend);
 void dump_seg_tree(struct seg_info *root);
 
-struct code_info *find_ci(struct code_info **head, ULONG maddr);
+struct code_info *find_ci(struct code_info **head, U32 maddr);
 
-#endif
+#endif /* CODEINFO_H */
