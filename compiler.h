@@ -1,9 +1,12 @@
 /*
- * $Id: compiler.h,v 1.1.1.1 1996/06/30 23:51:53 grubba Exp $
+ * $Id: compiler.h,v 1.2 1996/07/08 21:21:26 grubba Exp $
  *
  * Includefile for the M68000 to Sparc recompiler.
  *
  * $Log: compiler.h,v $
+ * Revision 1.1.1.1  1996/06/30 23:51:53  grubba
+ * Entry into CVS
+ *
  * Revision 1.2  1996/06/19 11:08:25  grubba
  * Added support for pushing next PC.
  *
@@ -26,6 +29,24 @@ struct tab_entry {
   const char	*mnemonic;
 };
 
+/*
+ * Tab_Entry Flags:
+ *
+ * 3322 2222 2222 1111 1111 1100 0000 0000
+ * 1098 7654 3210 9876 5432 1098 7654 3210
+ *
+ * 1                                       Supervisormode only
+ *      1                                  Push PC on stack
+ *         1                               Fix status register after opcode
+ *        1                                Write %acc0 to %ea after opcode
+ *       1                                 Terminate compiler after this opcode
+ *           1                 l ssmm mrrr Destination EA (loaded to %acc0)
+ *            1     ls smmm rrr            Source EA (loaded to %acc1)
+ *            01     i iiii iii            Source is quick 8bit (loaded to %acc1)
+ *    1                                    Source is multiple registers
+ *   1                                     Destination is multiple registers
+ */
+
 /* Pre instruction flags */
 #define TEF_SUPERVISOR	0x80000000
 
@@ -40,6 +61,8 @@ struct tab_entry {
 /* Argument information */
 #define TEF_DST		0x00800000
 #define TEF_SRC		0x00400000
+
+#define TEF_SRC_QUICK8	0x00200000
 
 #define TEF_SRC_MOVEM	0x10000000
 #define TEF_DST_MOVEM	0x20000000
