@@ -1,9 +1,14 @@
 /*
- * $Id: hardware.c,v 1.7 1996/07/14 21:44:21 grubba Exp $
+ * $Id: hardware.c,v 1.8 1996/07/17 00:13:05 grubba Exp $
  *
  * Hardware emulation for the M68000 to Sparc recompiler.
  *
  * $Log: hardware.c,v $
+ * Revision 1.7  1996/07/14 21:44:21  grubba
+ * Added support for adding hardware dynamically.
+ * Added CIAA time of day clock (50Hz).
+ * Moved some debug output from stderr to stdout.
+ *
  * Revision 1.6  1996/07/13 19:32:15  grubba
  * Now defaults to very little debuginfo.
  * Added (un|set)patch().
@@ -107,7 +112,7 @@ void reset_custom(ULONG base)
 
 void init_custom(void)
 {
-  add_hw(0x00dff000, 0x00001000,
+  add_hw(0x00dff000, 0x00001000, "Custom Chips", 
 	 NULL, read_custom, read_bad,
 	 write_bad, write_custom, write_bad,
 	 reset_custom);
@@ -199,7 +204,7 @@ extern void zorro_reset(ULONG);
 
 void init_zorro(void)
 {
-  add_hw(0x00e80000, 0x00080000,
+  add_hw(0x00e80000, 0x00080000, "Zorro II bus",
 	 zorro_readlong, zorro_readword, zorro_readbyte,
 	 zorro_writelong, zorro_writeword, zorro_writebyte,
 	 zorro_reset);
@@ -232,7 +237,7 @@ void reset_slow(ULONG base)
 
 void init_slow(void)
 {
-  add_hw(0x00c00000, 0x001c0000,
+  add_hw(0x00c00000, 0x001c0000, "Ranger (SLOW) memory",
 	 NULL, read_slow_w, read_slow_b,
 	 NULL, write_slow_w, write_slow_b,
 	 reset_slow);
@@ -256,7 +261,7 @@ void reset_rtc(ULONG base)
 
 void init_rtc(void)
 {
-  add_hw(0x00dc0000, 0x00010000,
+  add_hw(0x00dc0000, 0x00010000, "Real time clock",
 	 read_rtc, read_rtc, read_rtc,
 	 write_rtc, write_rtc, write_rtc,
 	 reset_rtc);
@@ -272,6 +277,7 @@ void init_rtc(void)
 
 struct hw {
   ULONG start, end;
+  const char *name;
   ULONG (*read)(ULONG addr, ULONG base);
   ULONG (*read_short)(ULONG addr, ULONG base);
   ULONG (*read_byte)(ULONG addr, ULONG base);
@@ -434,6 +440,7 @@ ULONG clobber_code_short(ULONG maddr, USHORT val)
 }
 
 void add_hw(ULONG start, ULONG size,
+	    const char *name,
 	    ULONG (*read_long)(ULONG, ULONG),
 	    ULONG (*read_word)(ULONG, ULONG),
 	    ULONG (*read_byte)(ULONG, ULONG),
@@ -457,7 +464,7 @@ void add_hw(ULONG start, ULONG size,
       abort();
     }
   }
-  for (i = num_hw_banks - 2; i > 0; i--) {
+  for (i = num_hw_banks - 2; i >= 0; i--) {
     if (hardware[i].start > start) {
       hardware[i + 1] = hardware[i];
     } else {
@@ -471,6 +478,7 @@ void add_hw(ULONG start, ULONG size,
   }
   hardware[i + 1].start = start;
   hardware[i + 1].end = start + size;
+  hardware[i + 1].name = name;
   hardware[i + 1].read = read_long;
   hardware[i + 1].read_short = read_word;
   hardware[i + 1].read_byte = read_byte;
@@ -511,5 +519,9 @@ void init_hardware(void)
     printf("Initializing hardware: %d\r", i);
     hw_init_tab[i]();
   }
-  printf("\n");
+  printf("\nHardware map:\n");
+  for (i = 0; i < num_hw_banks; i++) {
+    printf(" 0x%08lx - 0x%08lx : \"%s\"\n",
+	   hardware[i].start, hardware[i].end, hardware[i].name);
+  }
 }
