@@ -1,9 +1,12 @@
 /*
- * $Id: compgen.c,v 1.9 1996/07/08 21:22:13 grubba Exp $
+ * $Id: compgen.c,v 1.10 1996/07/14 15:14:58 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.9  1996/07/08 21:22:13  grubba
+ * Added TEF_SRC_QUICK8 in some places.
+ *
  * Revision 1.8  1996/07/07 13:29:18  grubba
  * Removed the obsolete dis_*() functions, and their entry in the opcode_info struct.
  *
@@ -1915,11 +1918,47 @@ void tab_mulu(FILE *fp, USHORT opcode, const char *mnemonic)
 void as_mulu(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   /* FIXME: Should the parameters to ANDN be reversed? */
+  /* FIXME: Fix SR */
   fprintf(fp,
 	  "	sethi	%%hi(0xffff0000), %%o0\n"
+	  "	and	-16, %%sr, %%sr\n"
 	  "	andn	%%acc0, %%o0, %%acc0\n"
 	  "	andn	%%acc1, %%o0, %%acc1\n"
-	  "	smul	%%acc0, %%acc1, %%acc0\n");
+	  "	smul	%%acc0, %%acc1, %%acc0\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	blt,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n");
+}
+
+int head_muls(USHORT opcode)
+{
+  return (opcode == 0xc1c0);
+}
+
+void tab_muls(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  fprintf(fp, "0x%08x, opcode_c1c0",
+	  TEF_SRC | TEF_SRC_WORD | TEF_SRC_LOAD | ((opcode & 0x003f)<<9) |
+	  TEF_DST | TEF_DST_LONG | TEF_DST_LOAD | ((opcode & 0x0e00)>>9) |
+	  TEF_WRITE_BACK);
+}
+
+void as_muls(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  fprintf(fp,
+	  "	sll	%%acc0, 0x10, %%acc0\n"
+	  "	and	-16, %%sr, %%sr\n"
+	  "	srl	%%acc0, 0x10, %%acc0\n"
+	  "	smul	%%acc0, %%acc1, %%acc0\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	blt,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n");
 }
 
 int head_exg(USHORT opcode)
@@ -2278,12 +2317,12 @@ void as_rod(FILE *fp, USHORT opcode, const char *mnemonic)
     /* Register rotate */
 
     if (opcode & 0x0020) {
+      /* Register rotate count */
+      fprintf(fp, "	and	0x3f, %%acc1, %%acc1\n");
+    } else {
       /* Immediate rotate count */
       fprintf(fp, "	mov	0x%02x, %%acc1\n",
 	      (opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
-    } else {
-      /* Register rotate count */
-      fprintf(fp, "	and	0x3f, %%acc1, %%acc1\n");
     }
   }
   if (opcode & 0x0100) {
@@ -2838,7 +2877,7 @@ struct opcode_info opcodes[] = {
   { 0xf1f0, 0xc100, "ABCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xf1f0, 0xc140, "EXG", head_exg, tab_exg, as_exg, comp_default },
   { 0xf1f8, 0xc188, "EXG", head_exg, tab_exg, as_exg, comp_default },
-  { 0xf1c0, 0xc1c0, "MULS", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf1c0, 0xc1c0, "MULS", head_muls, tab_muls, as_muls, comp_default },
   { 0xf000, 0xc000, "AND", head_and, tab_and, as_and, comp_default },
 
   { 0xf0c0, 0xd0c0, "ADDA", head_adda, tab_adda, as_adda, comp_default },
