@@ -1,9 +1,12 @@
 /*
- * $Id: compgen.c,v 1.15 1996/07/16 22:42:39 grubba Exp $
+ * $Id: compgen.c,v 1.16 1996/07/16 23:29:17 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.15  1996/07/16 22:42:39  grubba
+ * Fixed typo in the last patch.
+ *
  * Revision 1.14  1996/07/16 22:36:56  grubba
  * The last bug-fix saved the registers to memory instead of the registerbank!
  * Fixed same problem with XORI_SR.
@@ -1091,13 +1094,13 @@ void tab_move_usp(FILE *fp, USHORT opcode, const char *mnemonic)
   /* SUPERVISOR */
   if (opcode & 0x0008) {
     /* From USP */
-    fprintf(fp, "0x%08x, opcode_%04x",
-	    TEF_SUPERVISOR | TEF_DST | 0x0008 | (opcode & 0x0007) | TEF_WRITE_BACK,
+    fprintf(fp, "0x%08x, opcode_%04x", TEF_SUPERVISOR |
+	    TEF_DST | TEF_DST_LONG | 0x0008 | (opcode & 0x0007) | TEF_WRITE_BACK,
 	    opcode & 0xfff8);
   } else {
     /* To USP */
-    fprintf(fp, "0x%08x, opcode_%04x",
-	    TEF_SUPERVISOR | TEF_DST | 0x0008 | (opcode & 0x0007) | TEF_DST_LOAD,
+    fprintf(fp, "0x%08x, opcode_%04x", TEF_SUPERVISOR |
+	    TEF_DST | TEF_DST_LONG | 0x0008 | (opcode & 0x0007) | TEF_DST_LOAD,
 	    opcode & 0xfff8);
   }
 }
