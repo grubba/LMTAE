@@ -1,7 +1,10 @@
 /*
- * $Id: recomp.h,v 1.2 1996/07/08 21:17:42 grubba Exp $
+ * $Id: recomp.h,v 1.3 1996/07/12 21:11:52 grubba Exp $
  *
  * $Log: recomp.h,v $
+ * Revision 1.2  1996/07/08 21:17:42  grubba
+ * reset_hw() added.
+ *
  * Revision 1.1.1.1  1996/06/30 23:51:50  grubba
  * Entry into CVS
  *
@@ -58,7 +61,7 @@ extern int (*comp_tab[])(ULONG *, ULONG **, USHORT *, USHORT);
 struct m_registers;
 struct code_info;
 
-volatile void raise_exception(struct m_registers *regs, USHORT *mem, ULONG vec);
+ULONG raise_exception(struct m_registers *regs, USHORT *mem, ULONG vec);
 volatile void compile_and_go(struct m_registers *regs, ULONG maddr);
 ULONG compile(struct code_info *ci);
 void disassemble(ULONG start, ULONG end);

@@ -1,9 +1,12 @@
 /*
- * $Id: recomp.c,v 1.7 1996/07/12 13:11:38 marcus Exp $
+ * $Id: recomp.c,v 1.8 1996/07/12 21:11:49 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.7  1996/07/12 13:11:38  marcus
+ * Added the hardfile board
+ *
  * Revision 1.6  1996/07/11 23:02:06  marcus
  * Real ZorroII emulation
  *
@@ -119,12 +122,28 @@ struct code_info *new_codeinfo(ULONG maddr)
   return(ci);
 }
 
-volatile void raise_exception(struct m_registers *regs, USHORT *mem, ULONG vec)
+ULONG raise_exception(struct m_registers *regs, USHORT *mem, ULONG vec)
 {
+  int i;
+  ULONG sp = regs->a7;
   ULONG osr = regs->sr;
   
   fprintf(stderr, "raise_exception(0x%08lx)\n", vec);
   
+  fprintf(stderr, "RAW register dump:\n");
+  for (i=0; i*sizeof(ULONG)<sizeof(struct m_registers); i++) {
+    fprintf(stderr, "%02x: 0x%08lx\n", i, ((ULONG *)regs)[i]);
+  }
+
+  fprintf(stderr, "STACK dump\n");
+  for (i=0; i < 64; i++) {
+    if (!(i & 7)) {
+      fprintf(stderr, "\n0x%08lx\t", sp + i*sizeof(USHORT));
+    }
+    fprintf(stderr, "0x%04x ", ((USHORT *)(memory + sp))[i]);
+  }
+  fprintf(stderr, "\n");
+ 
   /* FIXME: Need to check for bad SSP => HALT */
   /* FIXME: Add VBR */
 
@@ -141,8 +160,10 @@ volatile void raise_exception(struct m_registers *regs, USHORT *mem, ULONG vec)
   regs->a7 -= 2;
   *((USHORT *)(memory + regs->a7)) = osr;
 
+  abort();
+
   /* FIXME: Old standard */
-  compile_and_go(regs, *((ULONG *)(memory + (vec<<2))));
+  return (*((ULONG *)(memory + (vec<<2))));
 }
 
 volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
@@ -160,7 +181,15 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
       
       fprintf(stderr, "BUS ERROR! Bad address! 0x%08lx\n", maddr);
 
-      raise_exception(regs, (USHORT *)memory, VEC_BUS_ERROR + (maddr & 1));
+      if ((maddr = raise_exception(regs,
+				   (USHORT *)memory,
+				   VEC_BUS_ERROR + (maddr & 1))) && 0xff000001) {
+	fprintf(stderr,
+		"Double ADDRESS/BUS ERROR!\n"
+		"New address = 0x%08lx\n",
+		maddr);
+	abort();
+      }
       return;
     }
 
