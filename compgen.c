@@ -1,9 +1,13 @@
 /*
- * $Id: compgen.c,v 1.18 1996/07/17 19:16:23 grubba Exp $
+ * $Id: compgen.c,v 1.19 1996/07/17 20:11:12 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.18  1996/07/17 19:16:23  grubba
+ * Implemented interrupts. None generated yet though.
+ * Implemented STOP.
+ *
  * Revision 1.17  1996/07/17 16:01:15  grubba
  * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
  * Hopefully all places got patched.
@@ -2116,6 +2120,31 @@ void as_muls(FILE *fp, U16 opcode, const char *mnemonic)
 	  "0:\n");
 }
 
+int head_eor(U16 opcode)
+{
+  return (opcode == 0xb100);
+}
+
+void tab_eor(FILE *fp, U16 opcode, const char *mnemonic)
+{
+  fprintf(fp, "0x%08x, opcode_b100",
+	  TEF_SRC | TEF_SRC_LOAD | ((opcode & 0x00c0)<<9) | (opcode & 0x0e00) |
+	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_WRITE_BACK);
+}
+
+void as_eor(FILE *fp, U16 opcode, const char *mnemonic)
+{
+  fprintf(fp,
+	  "	xor	%%acc0, %%acc1, %%acc0\n"
+	  "	and	-16, %%sr, %%sr\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	blt,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n");
+}
+
 int head_exg(U16 opcode)
 {
   return(((opcode & 0x00ff) == 0x0048) ||
@@ -2166,7 +2195,7 @@ void tab_and(FILE *fp, U16 opcode, const char *mnemonic)
 
   if (opcode & 0x0100) {
     fprintf(fp, "0x%08x, opcode_c000",
-	    base | (opcode & 0x0e03f));
+	    base | (opcode & 0x0e3f));
   } else {
     fprintf(fp, "0x%08x, opcode_c000",
 	    base | ((opcode & 0x0e00)>>9) | ((opcode & 0x003f)<<9));
@@ -3190,7 +3219,7 @@ struct opcode_info opcodes[] = {
   { 0xf0c0, 0xb0c0, "CMPA", head_cmpa, tab_cmpa, as_cmpa, comp_default },
   { 0xf100, 0xb000, "CMP", head_cmp, tab_cmp, as_cmp, comp_default },
   { 0xf138, 0xb108, "CMPM", head_cmpm, tab_cmpm, as_cmpm, comp_default },
-  { 0xf100, 0xb100, "EOR", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf100, 0xb100, "EOR", head_eor, tab_eor, as_eor, comp_default },
 
   { 0xf1c0, 0xc0c0, "MULU", head_mulu, tab_mulu, as_mulu, comp_default },
   { 0xf1f0, 0xc100, "ABCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
