@@ -1,9 +1,12 @@
 /*
- * $Id: compgen.c,v 1.7 1996/07/04 18:08:23 grubba Exp $
+ * $Id: compgen.c,v 1.8 1996/07/07 13:29:18 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.7  1996/07/04 18:08:23  grubba
+ * Added DIVU and EXT.
+ *
  * Revision 1.6  1996/07/03 15:39:47  grubba
  * Added opcode NEG.
  *
@@ -234,8 +237,6 @@ int comp_default(FILE *fp, USHORT opcode, const char *mnemonic)
  * M68000 instruction implementations
  */
 
-int dis_illegal(FILE *fp, USHORT opcode, const char *mnemonic);
-
 int head_addi(USHORT opcode)
 {
   return (opcode == 0x0600);
@@ -254,8 +255,6 @@ void as_addi(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fputs("	addcc	%acc1, %acc0, %acc0\n",	fp);
 }
-
-int dis_addi(FILE *fp, USHORT opcode, const char *mnemonic) { return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_andi(USHORT opcode)
 {
@@ -282,9 +281,6 @@ void as_andi(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-int dis_andi(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_andi_ccr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 void tab_andi_sr(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   /* SUPERVISOR, IMMEDIATE */
@@ -297,8 +293,6 @@ void as_andi_sr(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fputs("	and	%acc1, %sr, %sr\n", fp);
 }
-
-int dis_andi_sr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_bchg(USHORT opcode)
 {
@@ -353,9 +347,6 @@ void as_bchg(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-int dis_bchg(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_bchg_imm(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_bclr(USHORT opcode)
 {
   return(opcode == 0x0180);
@@ -405,9 +396,6 @@ void as_bclr(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n"
 	  "	andn	%%acc0, %%o0, %%acc0\n");
 }
-
-int dis_bclr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_bclr_imm(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_bset(USHORT opcode)
 {
@@ -459,8 +447,6 @@ void as_bset(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	or	%%acc0, %%o0, %%acc0\n");
 }
 
-int dis_bset(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_bset_imm(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 int head_btst(USHORT opcode)
 {
   return(opcode == 0x0100);
@@ -509,9 +495,6 @@ void as_btst(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-int dis_btst(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_chk(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_cmp(USHORT opcode)
 {
   return(opcode == 0xb000);
@@ -529,8 +512,6 @@ void as_cmp(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fprintf(fp, "	subcc	%%acc0, %%acc1, %%g0\n");
 }
-
-int dis_cmp(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_cmpa(USHORT opcode)
 {
@@ -561,8 +542,6 @@ void as_cmpa(FILE *fp, USHORT opcode, const char *mnemonic)
   fprintf(fp, "	subcc	%%acc0, %%acc1, %%g0\n");
 }
 
-int dis_cmpa(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_cmpi(USHORT opcode)
 {
   return(opcode == 0x0c00);
@@ -580,8 +559,6 @@ void as_cmpi(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fprintf(fp, "	subcc	%%acc0, %%acc1, %%g0\n");
 }
-
-int dis_cmpi(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_cmpm(USHORT opcode)
 {
@@ -601,10 +578,6 @@ void as_cmpm(FILE *fp, USHORT opcode, const char *mnemonic)
   fprintf(fp, "	subcc	%%acc0, %%acc1, %%g0\n");
 }
 
-int dis_cmpm(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_eor(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_eori(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_eori_ccr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 void tab_eori_sr(FILE *fp, USHORT opcode, const char *mnemonic)
 {
@@ -619,8 +592,6 @@ void as_eori_sr(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fputs("	xor	%acc1, %sr, %sr\n", fp);
 }
-
-int dis_eori_sr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_illegal(USHORT opcode)
 {
@@ -640,12 +611,6 @@ void as_illegal(FILE *fp, USHORT opcode, const char *mnemonic)
   as_exception(fp, opcode);
 }
 
-int dis_illegal(FILE *fp, USHORT opcode, const char *mnemonic)
-{
-  fprintf(fp, "printf(\"%04x %s\n\");\n", opcode, mnemonic);
-  return(1);
-}
-
 int head_lea(USHORT opcode)
 {
   return(opcode == 0x41c0);
@@ -663,8 +628,6 @@ void as_lea(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fprintf(fp, "	mov	%%ea, %%acc0\n");
 }
-
-int dis_lea(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_link(USHORT opcode)
 {
@@ -692,8 +655,6 @@ void as_link(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	mov	%%ea, %%acc0\n"
 	  "	st	%%o0, [ %%regs + _A7 ]\n");
 }
-
-int dis_link(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_move(USHORT opcode)
 {
@@ -737,8 +698,6 @@ void as_move(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-int dis_move(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_move_sr(USHORT opcode)
 {
   return((opcode == 0x46c0) || (opcode == 0x40c0));
@@ -778,9 +737,6 @@ void as_move_sr(FILE *fp, USHORT opcode, const char *mnemonic)
   }
 }
 
-int dis_move_sr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_move_ccr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_movea(USHORT opcode)
 {
   return (opcode == 0x2040);
@@ -810,20 +766,12 @@ void as_movea(FILE *fp, USHORT opcode, const char *mnemonic)
   fprintf(fp, "	mov	%%acc1, %%acc0\n");
 }
 
-int dis_movea(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
-int dis_movep(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
-
 #if 0
 int comp_moves(FILE *fp, USHORT opcode, const char *mnemonic){
   comp_supervisor(fp, opcode, mnemonic);
   return(comp_illegal(fp, opcode, mnemonic));
 }
 #endif /* 0 */
-int dis_moves(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
-int dis_negx(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_ori(USHORT opcode)
 {
@@ -850,8 +798,6 @@ void as_ori(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-int dis_ori(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_ori_ccr(USHORT opcode)
 {
   return (opcode == 0x003c);
@@ -867,8 +813,6 @@ void as_ori_ccr(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fprintf(fp, "	or	%%acc1, %%sr, %%sr\n");
 }
-
-int dis_ori_ccr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_ori_sr(USHORT opcode)
 {
@@ -889,8 +833,6 @@ void as_ori_sr(FILE *fp, USHORT opcode, const char *mnemonic)
   fputs("	or	%acc1, %sr, %sr\n", fp);
 }
 
-int dis_ori_sr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_clr(USHORT opcode)
 {
   return (opcode == 0x4200);
@@ -910,8 +852,6 @@ void as_clr(FILE *fp, USHORT opcode, const char *mnemonic)
 	"	or	0x04, %sr, %sr\n",
 	fp);
 }
-
-int dis_clr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_neg(USHORT opcode)
 {
@@ -941,8 +881,6 @@ void as_neg(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-int dis_neg(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_not(USHORT opcode)
 {
   return(opcode == 0x4600);
@@ -966,10 +904,6 @@ void as_not(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	or	4, %%sr, %%sr\n"
 	  "0:\n");
 }
-
-int dis_not(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_nbcd(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_pea(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_pea(USHORT opcode)
 {
@@ -1026,8 +960,6 @@ void as_movem(FILE *fp, USHORT opcode, const char *mnemonic)
   /* Everything is magic */
 }
 
-int dis_movem(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 void tab_move_usp(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   /* SUPERVISOR */
@@ -1055,8 +987,6 @@ void as_move_usp(FILE *fp, USHORT opcode, const char *mnemonic)
   }
 }
 
-int dis_move_usp(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 void tab_reset(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fprintf(fp, "0x%08x, opcode_%04x", TEF_SUPERVISOR, opcode);
@@ -1070,8 +1000,6 @@ void as_reset(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	nop\n");
 }
 
-int dis_reset(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 void tab_nop(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   /* No need to do anything */
@@ -1083,16 +1011,12 @@ void as_nop(FILE *fp, USHORT opcode, const char *mnemonic)
   /* No need to do anything */
 }
 
-int dis_nop(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 #if 0
 int comp_stop(FILE *fp, USHORT opcode, const char *mnemonic){
   comp_supervisor(fp, opcode, mnemonic);
   return(comp_illegal(fp, opcode, mnemonic));
 }
 #endif /* 0 */
-
-int dis_stop(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 void tab_rte(FILE *fp, USHORT opcode, const char *mnemonic)
 {
@@ -1152,8 +1076,6 @@ void as_rte(FILE *fp, USHORT opcode, const char *mnemonic)
 	"	restore\n", fp);
 }
 
-int dis_rte(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 void tab_rtd(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fprintf(fp, "0x%08x, opcode_4e74",
@@ -1182,8 +1104,6 @@ void as_rtd(FILE *fp, USHORT opcode, const char *mnemonic)
 	"	restore\n", fp);
 }
 
-int dis_rtd(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 void tab_rts(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   /* TERMINATE */
@@ -1208,9 +1128,6 @@ void as_rts(FILE *fp, USHORT opcode, const char *mnemonic)
 	"	ret\n"
 	"	restore\n", fp);
 }
-
-int dis_rts(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_rtr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 void tab_movec(FILE *fp, USHORT opcode, const char *mnemonic)
 {
@@ -1281,8 +1198,6 @@ void as_movec(FILE *fp, USHORT opcode, const char *mnemonic)
   }
 }
 
-int dis_movec(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_swap(USHORT opcode)
 {
   return (opcode == 0x4840);
@@ -1302,9 +1217,6 @@ void as_swap(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	sll	%%acc0, 0x10, %%acc0\n"
 	  "	or	%%acc0, %%o0, %%acc0\n");
 }
-
-int dis_swap(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_bkpt(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_ext(USHORT opcode)
 {
@@ -1335,8 +1247,6 @@ void as_ext(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	mov	%%acc1, %%acc0\n");
 }
 
-int dis_ext(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_subi(USHORT opcode)
 {
   return(opcode == 0x0400);
@@ -1355,9 +1265,6 @@ void as_subi(FILE *fp, USHORT opcode, const char *mnemonic)
   fprintf(fp,
 	  "	subcc	%%acc0, %%acc1, %%acc0\n");
 }
-
-int dis_subi(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_tas(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_tst(USHORT opcode)
 {
@@ -1382,9 +1289,6 @@ void as_tst(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-int dis_tst(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_trap(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_unlk(USHORT opcode)
 {
   return(opcode == 0x4e58);
@@ -1408,9 +1312,6 @@ void as_unlk(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	st	%%acc1, [ %%regs + _A7 ]\n");
 }
 
-int dis_unlk(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_trapv(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_jsr(USHORT opcode)
 {
   return(opcode == 0x4e80);
@@ -1432,8 +1333,6 @@ void as_jsr(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	restore\n");
 }
 
-int dis_jsr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_jmp(USHORT opcode)
 {
   return(opcode == 0x4ec0);
@@ -1454,8 +1353,6 @@ void as_jmp(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	ret\n"
 	  "	restore\n");
 }
-
-int dis_jmp(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 void tab_dbcc(FILE *fp, USHORT opcode, const char *mnemonic)
 {
@@ -1534,8 +1431,6 @@ void as_dbcc(FILE *fp, USHORT opcode, const char *mnemonic)
   }
 }
 
-int dis_dbcc(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_scc(USHORT opcode)
 {
   return(!(opcode & 0x003f));
@@ -1605,8 +1500,6 @@ void as_scc(FILE *fp, USHORT opcode, const char *mnemonic)
   }
 }
 
-int dis_scc(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_addq(USHORT opcode)
 {
   return(opcode == (opcode & 0xff00));
@@ -1638,8 +1531,6 @@ void as_addq(FILE *fp, USHORT opcode, const char *mnemonic)
     fputs("	addcc	0x08, %acc0, %acc0\n", fp);
   }
 }
-
-int dis_addq(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 /* FIXME: SUBQ code is a case of cut-and-paste read it */
 
@@ -1674,8 +1565,6 @@ void as_subq(FILE *fp, USHORT opcode, const char *mnemonic)
     fputs("	addcc	-0x08, %acc0, %acc0\n", fp);
   }
 }
-
-int dis_subq(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 void tab_bra(FILE *fp, USHORT opcode, const char *mnemonic)
 {
@@ -1712,8 +1601,6 @@ void as_bra(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	restore\n");
 }
 
-int dis_bra(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 void tab_bsr(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   if (opcode & 0xff) {
@@ -1748,8 +1635,6 @@ void as_bsr(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	ret\n"
 	  "	restore\n");
 }
-
-int dis_bsr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 void tab_bcc(FILE *fp, USHORT opcode, const char *mnemonic)
 {
@@ -1837,8 +1722,6 @@ void as_bcc(FILE *fp, USHORT opcode, const char *mnemonic)
   fprintf(fp,"0:\n");
 }
 
-int dis_bcc(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_moveq(USHORT opcode)
 {
   return (opcode == (opcode & 0xf1ff));
@@ -1874,8 +1757,6 @@ void as_moveq(FILE *fp, USHORT opcode, const char *mnemonic)
     }
   }
 }
-
-int dis_moveq(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_divu(USHORT opcode)
 {
@@ -1919,10 +1800,6 @@ void as_divu(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-int dis_divu(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_sbcd(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_divs(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_or(USHORT opcode)
 {
   return(opcode == 0x8000);
@@ -1953,8 +1830,6 @@ void as_or(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-int dis_or(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_suba(USHORT opcode)
 {
   return(opcode == 0x90c0);
@@ -1974,9 +1849,6 @@ void as_suba(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fprintf(fp, "	sub	%%acc0, %%acc1, %%acc0\n");
 }
-
-int dis_suba(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_subx(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_sub(USHORT opcode)
 {
@@ -2003,9 +1875,6 @@ void as_sub(FILE *fp, USHORT opcode, const char *mnemonic)
   fprintf(fp, "	subcc	%%acc0, %%acc1, %%acc0\n");
 }
 
-int dis_sub(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_line_a(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_mulu(USHORT opcode)
 {
   return (opcode == 0xc0c0);
@@ -2028,9 +1897,6 @@ void as_mulu(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	andn	%%acc1, %%o0, %%acc1\n"
 	  "	smul	%%acc0, %%acc1, %%acc0\n");
 }
-
-int dis_mulu(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_abcd(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_exg(USHORT opcode)
 {
@@ -2070,9 +1936,6 @@ void as_exg(FILE *fp, USHORT opcode, const char *mnemonic)
   }
 }
 
-int dis_exg(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_muls(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_and(USHORT opcode)
 {
   return(opcode == 0xc000);
@@ -2105,8 +1968,6 @@ void as_and(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-int dis_and(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_adda(USHORT opcode)
 {
   return(opcode == 0xd0c0);
@@ -2125,9 +1986,6 @@ void as_adda(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fprintf(fp, "	add	%%acc0, %%acc1, %%acc0\n");
 }
-
-int dis_adda(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_addx(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_add(USHORT opcode)
 {
@@ -2157,8 +2015,6 @@ void as_add(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fputs("	addcc	%acc0, %acc1, %acc0\n", fp);
 }
-
-int dis_add(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_asd(USHORT opcode)
 {
@@ -2257,10 +2113,6 @@ void as_asd(FILE *fp, USHORT opcode, const char *mnemonic)
   }
 }
 
-int dis_asd(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_asd_imm(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_asd_mem(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_lsd(USHORT opcode)
 {
   return(((opcode & 0xfef8) == 0xe028) ||
@@ -2350,10 +2202,6 @@ void as_lsd(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	or	4, %%sr, %%sr\n"
 	  "0:\n");
 }
-
-int dis_lsd(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_lsd_imm(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_lsd_mem(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_rod(USHORT opcode)
 {
@@ -2539,13 +2387,6 @@ void as_rod(FILE *fp, USHORT opcode, const char *mnemonic)
   fprintf(fp, "0:\n");
 }
 
-int dis_rod(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_rod_imm(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_rod_mem(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_roxd(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_roxd_imm(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-int dis_roxd_mem(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
-
 int head_line_f(USHORT opcode)
 {
   return (opcode == 0xf000);
@@ -2563,8 +2404,6 @@ void as_line_f(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	mov	%%sr, %%acc1\n", VEC_LINE_F);
   as_exception(fp, opcode);
 }
-
-int dis_line_f(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 /*
  * Some help functions
@@ -2867,7 +2706,6 @@ struct opcode_info {
   void (*tab_entry)(FILE *fp, USHORT opcode, const char *);
   void (*assembler)(FILE *fp, USHORT opcode, const char *);
   int (*compiler)(FILE *fp, USHORT opcode, const char *);
-  int (*disassembler)(FILE *fp, USHORT opcode, const char *);
 };
 
 /*
@@ -2875,131 +2713,131 @@ struct opcode_info {
  */
 
 struct opcode_info opcodes[] = {
-  { 0xf138, 0x0108, "MOVEP", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_movep },
-  { 0xf1c0, 0x0100, "BTST", head_btst, tab_btst, as_btst, comp_default, dis_btst },
-  { 0xf1c0, 0x0140, "BCHG", head_bchg, tab_bchg, as_bchg, comp_default, dis_bchg },
-  { 0xf1c0, 0x0180, "BCLR", head_bclr, tab_bclr, as_bclr, comp_default, dis_bclr },
-  { 0xf1c0, 0x01c0, "BSET", head_bset, tab_bset, as_bset, comp_default, dis_bset },
-  { 0xffc0, 0x0800, "BTST", head_btst, tab_btst, as_btst, comp_default, dis_btst },
-  { 0xffc0, 0x0840, "BCHG", head_bchg, tab_bchg, as_bchg, comp_default, dis_bchg_imm },
-  { 0xffc0, 0x0880, "BCLR", head_bclr, tab_bclr, as_bclr, comp_default, dis_bclr_imm },
-  { 0xffc0, 0x08c0, "BSET", head_bset, tab_bset, as_bset, comp_default, dis_bset_imm },
-  { 0xffff, 0x003c, "ORI_CCR", head_ori_ccr, tab_ori_ccr, as_ori_ccr, comp_default, dis_ori_ccr },
-  { 0xffff, 0x007c, "ORI_SR", head_ori_sr, tab_ori_sr, as_ori_sr, comp_default, dis_ori_sr },
-  { 0xff00, 0x0000, "ORI", head_ori, tab_ori, as_ori, comp_default, dis_ori },
-  { 0xffff, 0x023c, "ANDI_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_andi_ccr },
-  { 0xffff, 0x027c, "ANDI_SR", head_default, tab_andi_sr, as_andi_sr, comp_default, dis_andi_sr },
-  { 0xff00, 0x0200, "ANDI", head_andi, tab_andi, as_andi, comp_default, dis_andi },
-  { 0xff00, 0x0400, "SUBI", head_subi, tab_subi, as_subi, comp_default, dis_subi },
-  { 0xff00, 0x0600, "ADDI", head_addi, tab_addi, as_addi, comp_default, dis_addi },
-  { 0xffff, 0x0a3c, "EORI_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_eori_ccr },
-  { 0xffff, 0x0a7c, "EORI_SR", head_default, tab_eori_sr, as_eori_sr, comp_default, dis_eori_sr },
-  { 0xff00, 0x0a00, "EORI", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_eori },
-  { 0xff00, 0x0c00, "CMPI", head_cmpi, tab_cmpi, as_cmpi, comp_default, dis_cmpi },
-  { 0xff00, 0x0e00, "MOVES", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_moves },
+  { 0xf138, 0x0108, "MOVEP", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf1c0, 0x0100, "BTST", head_btst, tab_btst, as_btst, comp_default },
+  { 0xf1c0, 0x0140, "BCHG", head_bchg, tab_bchg, as_bchg, comp_default },
+  { 0xf1c0, 0x0180, "BCLR", head_bclr, tab_bclr, as_bclr, comp_default },
+  { 0xf1c0, 0x01c0, "BSET", head_bset, tab_bset, as_bset, comp_default },
+  { 0xffc0, 0x0800, "BTST", head_btst, tab_btst, as_btst, comp_default },
+  { 0xffc0, 0x0840, "BCHG", head_bchg, tab_bchg, as_bchg, comp_default },
+  { 0xffc0, 0x0880, "BCLR", head_bclr, tab_bclr, as_bclr, comp_default },
+  { 0xffc0, 0x08c0, "BSET", head_bset, tab_bset, as_bset, comp_default },
+  { 0xffff, 0x003c, "ORI_CCR", head_ori_ccr, tab_ori_ccr, as_ori_ccr, comp_default },
+  { 0xffff, 0x007c, "ORI_SR", head_ori_sr, tab_ori_sr, as_ori_sr, comp_default },
+  { 0xff00, 0x0000, "ORI", head_ori, tab_ori, as_ori, comp_default },
+  { 0xffff, 0x023c, "ANDI_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffff, 0x027c, "ANDI_SR", head_default, tab_andi_sr, as_andi_sr, comp_default },
+  { 0xff00, 0x0200, "ANDI", head_andi, tab_andi, as_andi, comp_default },
+  { 0xff00, 0x0400, "SUBI", head_subi, tab_subi, as_subi, comp_default },
+  { 0xff00, 0x0600, "ADDI", head_addi, tab_addi, as_addi, comp_default },
+  { 0xffff, 0x0a3c, "EORI_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffff, 0x0a7c, "EORI_SR", head_default, tab_eori_sr, as_eori_sr, comp_default },
+  { 0xff00, 0x0a00, "EORI", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xff00, 0x0c00, "CMPI", head_cmpi, tab_cmpi, as_cmpi, comp_default },
+  { 0xff00, 0x0e00, "MOVES", head_not_implemented, tab_illegal, as_illegal, comp_default },
   
-  { 0xf1c0, 0x1040, "MOVEA", head_movea, tab_movea, as_movea, comp_default, dis_movea },
-  { 0xf000, 0x1000, "MOVE", head_move, tab_move, as_move, comp_default, dis_move },
-  { 0xf1c0, 0x2040, "MOVEA", head_movea, tab_movea, as_movea, comp_default, dis_movea },
-  { 0xf000, 0x2000, "MOVE", head_move, tab_move, as_move, comp_default, dis_move },
-  { 0xf1c0, 0x3040, "MOVEA", head_movea, tab_movea, as_movea, comp_default, dis_movea },
-  { 0xf000, 0x3000, "MOVE", head_move, tab_move, as_move, comp_default, dis_move },
+  { 0xf1c0, 0x1040, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
+  { 0xf000, 0x1000, "MOVE", head_move, tab_move, as_move, comp_default },
+  { 0xf1c0, 0x2040, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
+  { 0xf000, 0x2000, "MOVE", head_move, tab_move, as_move, comp_default },
+  { 0xf1c0, 0x3040, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
+  { 0xf000, 0x3000, "MOVE", head_move, tab_move, as_move, comp_default },
 
-  { 0xf1c0, 0x4180, "CHK", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_chk },
-  { 0xf1c0, 0x41c0, "LEA", head_lea, tab_lea, as_lea, comp_default, dis_lea },
+  { 0xf1c0, 0x4180, "CHK", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf1c0, 0x41c0, "LEA", head_lea, tab_lea, as_lea, comp_default },
 
-  { 0xffc0, 0x40c0, "MOVE_SR", head_move_sr, tab_move_sr, as_move_sr, comp_default, dis_move_sr },
-  { 0xff00, 0x4000, "NEGX", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_negx },
-  { 0xffc0, 0x42c0, "MOVE_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_move_ccr },
-  { 0xff00, 0x4200, "CLR", head_clr, tab_clr, as_clr, comp_default, dis_clr },
-  { 0xffc0, 0x44c0, "MOVE_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_move_ccr },
-  { 0xff00, 0x4400, "NEG", head_neg, tab_neg, as_neg, comp_default, dis_neg },
-  { 0xffc0, 0x46c0, "MOVE_SR", head_move_sr, tab_move_sr, as_move_sr, comp_default, dis_move_sr },
-  { 0xff00, 0x4600, "NOT", head_not, tab_not, as_not, comp_default, dis_not },
+  { 0xffc0, 0x40c0, "MOVE_SR", head_move_sr, tab_move_sr, as_move_sr, comp_default },
+  { 0xff00, 0x4000, "NEGX", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffc0, 0x42c0, "MOVE_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xff00, 0x4200, "CLR", head_clr, tab_clr, as_clr, comp_default },
+  { 0xffc0, 0x44c0, "MOVE_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xff00, 0x4400, "NEG", head_neg, tab_neg, as_neg, comp_default },
+  { 0xffc0, 0x46c0, "MOVE_SR", head_move_sr, tab_move_sr, as_move_sr, comp_default },
+  { 0xff00, 0x4600, "NOT", head_not, tab_not, as_not, comp_default },
   
-  { 0xffc0, 0x4800, "NBCD", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_nbcd },
-  { 0xfff8, 0x4840, "SWAP", head_swap, tab_swap, as_swap, comp_default, dis_swap },
-  { 0xfff8, 0x4848, "BKPT", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_bkpt },
-  { 0xffc0, 0x4840, "PEA", head_pea, tab_pea, as_pea, comp_default, dis_pea },
-  { 0xffb8, 0x4880, "EXT", head_ext, tab_ext, as_ext, comp_default, dis_ext },
-  { 0xfb80, 0x4880, "MOVEM", head_movem, tab_movem, as_movem, comp_default, dis_movem },
+  { 0xffc0, 0x4800, "NBCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xfff8, 0x4840, "SWAP", head_swap, tab_swap, as_swap, comp_default },
+  { 0xfff8, 0x4848, "BKPT", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffc0, 0x4840, "PEA", head_pea, tab_pea, as_pea, comp_default },
+  { 0xffb8, 0x4880, "EXT", head_ext, tab_ext, as_ext, comp_default },
+  { 0xfb80, 0x4880, "MOVEM", head_movem, tab_movem, as_movem, comp_default },
 
-  { 0xfff0, 0x4e60, "MOVE_USP", head_default, tab_move_usp, as_move_usp, comp_default, dis_move_usp },
+  { 0xfff0, 0x4e60, "MOVE_USP", head_default, tab_move_usp, as_move_usp, comp_default },
   
-  { 0xffff, 0x4e70, "RESET", head_default, tab_reset, as_reset, comp_default, dis_reset },
-  { 0xffff, 0x4e71, "NOP", head_default, tab_nop, as_nop, comp_default, dis_nop },
-  { 0xffff, 0x4e72, "STOP", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_stop },
-  { 0xffff, 0x4e73, "RTE", head_default, tab_rte, as_rte, comp_default, dis_rte },
-  { 0xffff, 0x4e74, "RTD", head_default, tab_rtd, as_rtd, comp_default, dis_rtd },
-  { 0xffff, 0x4e75, "RTS", head_default, tab_rts, as_rts, comp_default, dis_rts },
-  { 0xffff, 0x4e77, "RTR", head_default, tab_illegal, as_illegal, comp_default, dis_rtr },
-  { 0xfffe, 0x4e7a, "MOVEC", head_default, tab_movec, as_movec, comp_default, dis_movec },
+  { 0xffff, 0x4e70, "RESET", head_default, tab_reset, as_reset, comp_default },
+  { 0xffff, 0x4e71, "NOP", head_default, tab_nop, as_nop, comp_default },
+  { 0xffff, 0x4e72, "STOP", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffff, 0x4e73, "RTE", head_default, tab_rte, as_rte, comp_default },
+  { 0xffff, 0x4e74, "RTD", head_default, tab_rtd, as_rtd, comp_default },
+  { 0xffff, 0x4e75, "RTS", head_default, tab_rts, as_rts, comp_default },
+  { 0xffff, 0x4e77, "RTR", head_default, tab_illegal, as_illegal, comp_default },
+  { 0xfffe, 0x4e7a, "MOVEC", head_default, tab_movec, as_movec, comp_default },
 
-  { 0xffff, 0x4afc, "ILLEGAL", head_default, tab_illegal, as_illegal, comp_default, dis_illegal },
-  { 0xffc0, 0x4ac0, "TAS", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_tas },
-  { 0xff00, 0x4a00, "TST", head_tst, tab_tst, as_tst, comp_default, dis_tst },
-  { 0xfff0, 0x4e40, "TRAP", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_trap },
-  { 0xfff8, 0x4e50, "LINK", head_link, tab_link, as_link, comp_default, dis_link },
-  { 0xfff8, 0x4e58, "UNLK", head_unlk, tab_unlk, as_unlk, comp_default, dis_unlk },
-  { 0xffff, 0x4e76, "TRAPV", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_trapv },
-  { 0xffc0, 0x4e80, "JSR", head_jsr, tab_jsr, as_jsr, comp_default, dis_jsr },
-  { 0xffc0, 0x4ec0, "JMP", head_jmp, tab_jmp, as_jmp, comp_default, dis_jmp },
+  { 0xffff, 0x4afc, "ILLEGAL", head_default, tab_illegal, as_illegal, comp_default },
+  { 0xffc0, 0x4ac0, "TAS", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xff00, 0x4a00, "TST", head_tst, tab_tst, as_tst, comp_default },
+  { 0xfff0, 0x4e40, "TRAP", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xfff8, 0x4e50, "LINK", head_link, tab_link, as_link, comp_default },
+  { 0xfff8, 0x4e58, "UNLK", head_unlk, tab_unlk, as_unlk, comp_default },
+  { 0xffff, 0x4e76, "TRAPV", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffc0, 0x4e80, "JSR", head_jsr, tab_jsr, as_jsr, comp_default },
+  { 0xffc0, 0x4ec0, "JMP", head_jmp, tab_jmp, as_jmp, comp_default },
 
-  { 0xf0f8, 0x50c8, "DB", head_default, tab_dbcc, as_dbcc, comp_default, dis_dbcc },
-  { 0xf0c0, 0x50c0, "S", head_scc, tab_scc, as_scc, comp_default, dis_scc },
-  { 0xf100, 0x5000, "ADDQ", head_addq, tab_addq, as_addq, comp_default, dis_addq },
-  { 0xf100, 0x5100, "SUBQ", head_subq, tab_subq, as_subq, comp_default, dis_subq },
+  { 0xf0f8, 0x50c8, "DB", head_default, tab_dbcc, as_dbcc, comp_default },
+  { 0xf0c0, 0x50c0, "S", head_scc, tab_scc, as_scc, comp_default },
+  { 0xf100, 0x5000, "ADDQ", head_addq, tab_addq, as_addq, comp_default },
+  { 0xf100, 0x5100, "SUBQ", head_subq, tab_subq, as_subq, comp_default },
   
-  { 0xff00, 0x6000, "BRA", head_default, tab_bra, as_bra, comp_default, dis_bra },
-  { 0xff00, 0x6100, "BSR", head_default, tab_bsr, as_bsr, comp_default, dis_bsr },
-  { 0xf000, 0x6000, "B", head_default, tab_bcc, as_bcc, comp_default, dis_bcc },
+  { 0xff00, 0x6000, "BRA", head_default, tab_bra, as_bra, comp_default },
+  { 0xff00, 0x6100, "BSR", head_default, tab_bsr, as_bsr, comp_default },
+  { 0xf000, 0x6000, "B", head_default, tab_bcc, as_bcc, comp_default },
 
-  { 0xf000, 0x7000, "MOVEQ", head_moveq, tab_moveq, as_moveq, comp_default, dis_moveq },
+  { 0xf000, 0x7000, "MOVEQ", head_moveq, tab_moveq, as_moveq, comp_default },
 
-  { 0xf1c0, 0x80c0, "DIVU", head_divu, tab_divu, as_divu, comp_default, dis_divu },
-  { 0xf1f0, 0x8100, "SBCD", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_sbcd },
-  { 0xf1c0, 0x81c0, "DIVS", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_divs },
-  { 0xf000, 0x8000, "OR", head_or, tab_or, as_or, comp_default, dis_or },
+  { 0xf1c0, 0x80c0, "DIVU", head_divu, tab_divu, as_divu, comp_default },
+  { 0xf1f0, 0x8100, "SBCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf1c0, 0x81c0, "DIVS", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf000, 0x8000, "OR", head_or, tab_or, as_or, comp_default },
 
-  { 0xf0c0, 0x90c0, "SUBA", head_suba, tab_suba, as_suba, comp_default, dis_suba },
-  { 0xf130, 0x9100, "SUBX", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_subx },
-  { 0xf000, 0x9000, "SUB", head_sub, tab_sub, as_sub, comp_default, dis_sub },
+  { 0xf0c0, 0x90c0, "SUBA", head_suba, tab_suba, as_suba, comp_default },
+  { 0xf130, 0x9100, "SUBX", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf000, 0x9000, "SUB", head_sub, tab_sub, as_sub, comp_default },
 
-  { 0xf000, 0xa000, "LINE A", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_line_a },
+  { 0xf000, 0xa000, "LINE A", head_not_implemented, tab_illegal, as_illegal, comp_default },
 
-  { 0xf0c0, 0xb0c0, "CMPA", head_cmpa, tab_cmpa, as_cmpa, comp_default, dis_cmpa },
-  { 0xf100, 0xb000, "CMP", head_cmp, tab_cmp, as_cmp, comp_default, dis_cmp },
-  { 0xf138, 0xb108, "CMPM", head_cmpm, tab_cmpm, as_cmpm, comp_default, dis_cmpm },
-  { 0xf100, 0xb100, "EOR", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_eor },
+  { 0xf0c0, 0xb0c0, "CMPA", head_cmpa, tab_cmpa, as_cmpa, comp_default },
+  { 0xf100, 0xb000, "CMP", head_cmp, tab_cmp, as_cmp, comp_default },
+  { 0xf138, 0xb108, "CMPM", head_cmpm, tab_cmpm, as_cmpm, comp_default },
+  { 0xf100, 0xb100, "EOR", head_not_implemented, tab_illegal, as_illegal, comp_default },
 
-  { 0xf1c0, 0xc0c0, "MULU", head_mulu, tab_mulu, as_mulu, comp_default, dis_mulu },
-  { 0xf1f0, 0xc100, "ABCD", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_abcd },
-  { 0xf1f0, 0xc140, "EXG", head_exg, tab_exg, as_exg, comp_default, dis_exg },
-  { 0xf1f8, 0xc188, "EXG", head_exg, tab_exg, as_exg, comp_default, dis_exg },
-  { 0xf1c0, 0xc1c0, "MULS", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_muls },
-  { 0xf000, 0xc000, "AND", head_and, tab_and, as_and, comp_default, dis_and },
+  { 0xf1c0, 0xc0c0, "MULU", head_mulu, tab_mulu, as_mulu, comp_default },
+  { 0xf1f0, 0xc100, "ABCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf1f0, 0xc140, "EXG", head_exg, tab_exg, as_exg, comp_default },
+  { 0xf1f8, 0xc188, "EXG", head_exg, tab_exg, as_exg, comp_default },
+  { 0xf1c0, 0xc1c0, "MULS", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf000, 0xc000, "AND", head_and, tab_and, as_and, comp_default },
 
-  { 0xf0c0, 0xd0c0, "ADDA", head_adda, tab_adda, as_adda, comp_default, dis_adda },
-  { 0xf130, 0xd100, "ADDX", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_addx },
-  { 0xf000, 0xd000, "ADD", head_add, tab_add, as_add, comp_default, dis_add },
+  { 0xf0c0, 0xd0c0, "ADDA", head_adda, tab_adda, as_adda, comp_default },
+  { 0xf130, 0xd100, "ADDX", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf000, 0xd000, "ADD", head_add, tab_add, as_add, comp_default },
 
-  { 0xfec0, 0xe0c0, "AS", head_asd, tab_asd, as_asd, comp_default, dis_asd_mem },
-  { 0xfec0, 0xe2c0, "LS", head_lsd, tab_lsd, as_lsd, comp_default, dis_lsd_mem },
-  { 0xfec0, 0xe4c0, "ROX", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_roxd_mem },
-  { 0xfec0, 0xe6c0, "RO", head_rod, tab_rod, as_rod, comp_default, dis_rod_mem },
-  { 0xf0c0, 0xe0c0, "UNKNOWN", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_illegal },
-  { 0xf038, 0xe000, "AS", head_asd, tab_asd, as_asd, comp_default, dis_asd_imm },
-  { 0xf038, 0xe008, "LS", head_lsd, tab_lsd, as_lsd, comp_default, dis_lsd_imm },
-  { 0xf038, 0xe010, "ROX", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_roxd_imm },
-  { 0xf038, 0xe018, "RO", head_rod, tab_rod, as_rod, comp_default, dis_rod_imm },
-  { 0xf038, 0xe020, "AS", head_asd, tab_asd, as_asd, comp_default, dis_asd },
-  { 0xf038, 0xe028, "LS", head_lsd, tab_lsd, as_lsd, comp_default, dis_lsd },
-  { 0xf038, 0xe030, "ROX", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_roxd },
-  { 0xf038, 0xe038, "RO", head_rod, tab_rod, as_rod, comp_default, dis_rod },
+  { 0xfec0, 0xe0c0, "AS", head_asd, tab_asd, as_asd, comp_default },
+  { 0xfec0, 0xe2c0, "LS", head_lsd, tab_lsd, as_lsd, comp_default },
+  { 0xfec0, 0xe4c0, "ROX", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xfec0, 0xe6c0, "RO", head_rod, tab_rod, as_rod, comp_default },
+  { 0xf0c0, 0xe0c0, "UNKNOWN", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf038, 0xe000, "AS", head_asd, tab_asd, as_asd, comp_default },
+  { 0xf038, 0xe008, "LS", head_lsd, tab_lsd, as_lsd, comp_default },
+  { 0xf038, 0xe010, "ROX", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf038, 0xe018, "RO", head_rod, tab_rod, as_rod, comp_default },
+  { 0xf038, 0xe020, "AS", head_asd, tab_asd, as_asd, comp_default },
+  { 0xf038, 0xe028, "LS", head_lsd, tab_lsd, as_lsd, comp_default },
+  { 0xf038, 0xe030, "ROX", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf038, 0xe038, "RO", head_rod, tab_rod, as_rod, comp_default },
 
-  { 0xf000, 0xf000, "LINE F", head_line_f, tab_line_f, as_line_f, comp_default, dis_line_f },
+  { 0xf000, 0xf000, "LINE F", head_line_f, tab_line_f, as_line_f, comp_default },
 
-  { 0x0000, 0x0000, "UNKNOWN", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_illegal }
+  { 0x0000, 0x0000, "UNKNOWN", head_not_implemented, tab_illegal, as_illegal, comp_default }
 };
 
 const char *compiler_head =
