@@ -1,9 +1,15 @@
 /*
- * $Id: compgen.c,v 1.3 1996/07/01 19:16:44 grubba Exp $
+ * $Id: compgen.c,v 1.4 1996/07/02 22:17:31 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.3  1996/07/01 19:16:44  grubba
+ * Implemented ASL and ASR.
+ * Changed semantics for new_codeinfo(), it doesn't allocate space for the code.
+ * Added PeepHoleOptimize(). At the moment it just mallocs and copies the code.
+ * Removed some warnings.
+ *
  * Revision 1.2  1996/07/01 11:44:26  grubba
  * Missing opcodes NBCD and PEA added to the table.
  * Opcode PEA implemented.
@@ -2079,6 +2085,7 @@ void tab_asd(FILE *fp, USHORT opcode, const char *mnemonic)
 		TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
 		opcode & 0xf020);
       } else {
+	/* Immediate shift count */
 	fprintf(fp, "0x%08x, opcode_%04x",
 		TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
 		opcode & 0xfe20);
@@ -2107,8 +2114,9 @@ void as_asd(FILE *fp, USHORT opcode, const char *mnemonic)
 	    "	or	4, %%sr, %%sr\n"
 	    "0:\n");
   } else {
+    /* Register shift */
     if (opcode & 0x0020) {
-      /* Register shift */
+      /* Register shift count */
       fprintf(fp,
 	      "	and	0x3f, %%acc1, %%acc1\n"
 	      "	sra	%%acc0, %%acc1, %%acc0\n"
@@ -2119,7 +2127,7 @@ void as_asd(FILE *fp, USHORT opcode, const char *mnemonic)
 	      "	or	4, %%sr, %%sr\n"
 	      "0:\n");
     } else {
-      /* Immediate shift */
+      /* Immediate shift count */
       fprintf(fp,
 	      "	btst	0x%02x, %%acc0\n"
 	      "	sra	%%acc0, 0x%02x, %%acc0\n"
@@ -2132,8 +2140,8 @@ void as_asd(FILE *fp, USHORT opcode, const char *mnemonic)
 	      "	be,a	0f\n"
 	      "	or	4, %%sr, %%sr\n"
 	      "0:\n",
-	      (opcode & 0x0e00)?(1<<(((opcode & 0x0e00)>>9)-1)):0,
-	      ((opcode & 0x0e00)>>9));
+	      (opcode & 0x0e00)?(1<<(((opcode & 0x0e00)>>9)-1)):0x80,
+	      (opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
     }
   }
 }
@@ -2204,7 +2212,8 @@ void as_lsd(FILE *fp, USHORT opcode, const char *mnemonic)
       fprintf(fp, "	and	0x3f, %%acc1, %%acc1\n");
     } else {
       /* Immediate */
-      fprintf(fp, "	mov	0x%02x, %%acc1\n", (opcode & 0x0e00)>>9);
+      fprintf(fp, "	mov	0x%02x, %%acc1\n",
+	      (opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
     }
 
     if (opcode & 0x0100) {
@@ -2287,7 +2296,8 @@ void as_rod(FILE *fp, USHORT opcode, const char *mnemonic)
 
     if (opcode & 0x0020) {
       /* Immediate rotate count */
-      fprintf(fp, "	mov	0x%02x, %%acc1\n", ((opcode & 0x0e00)>>9));
+      fprintf(fp, "	mov	0x%02x, %%acc1\n",
+	      (opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
     } else {
       /* Register rotate count */
       fprintf(fp, "	and	0x3f, %%acc1, %%acc1\n");
