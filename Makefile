@@ -1,9 +1,12 @@
 #
-# $Id: Makefile,v 1.7 1996/07/11 23:01:58 marcus Exp $
+# $Id: Makefile,v 1.8 1996/07/12 13:10:03 marcus Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.7  1996/07/11 23:01:58  marcus
+# Real ZorroII emulation
+#
 # Revision 1.6  1996/07/11 15:41:48  grubba
 # Now has a GUI!
 # Some bug-fixes.
@@ -48,9 +51,11 @@ AS = gas
 CC = gcc
 GASP = gasp
 RM = rm -f
-CFLAGS = -g -O4711 -Wall -pedantic -DDEBUG -IAmigaInclude -I/usr/openwin/include -I/usr/X11/include
-LDLIBS = -L/usr/lib -L/usr/openwin/lib -L/usr/X11/lib \
-	-lthread -ldl -lX -lX11 -lXpm -R/usr/lib:/usr/openwin/lib:/usr/X11/lib
+CFLAGS = -g -O4711 -Wall -pedantic -DDEBUG \
+	-IAmigaInclude -I/usr/openwin/include -I/usr/X11/include
+LDFLAGS = -L/usr/lib -L/usr/openwin/lib -L/usr/X11/lib \
+	-R/usr/lib:/usr/openwin/lib:/usr/X11/lib
+LDLIBS = -lthread -ldl -lX -lX11 -lXpm
 
 OPCODES = opcodes/opcode_0000.o opcodes/opcode_1000.o \
 	  opcodes/opcode_2000.o opcodes/opcode_3000.o \
@@ -71,7 +76,7 @@ TABLES = tables/opcode_tab_0000.o tables/opcode_tab_1000.o \
 	tables/opcode_tab_e000.o tables/opcode_tab_f000.o \
 	tables/more_tables.o
 
-all : AmigaInclude ROM.dump citest compgen recomp rtest
+all : AmigaInclude ROM.dump citest compgen recomp rtest allboards
 
 opcodes :
 	mkdir opcodes
@@ -85,11 +90,15 @@ AmigaInclude :
 ROM.dump :
 	ln -s /users/grubba/AmigaROM/kick37175.A500 ROM.dump
 
+allboards :
+	@(cd boards; $(MAKE) all)
+
 clean :
 	-$(RM) *.o opcodes/*.o templates/*.o tables/*.o
 	-$(RM) memory.gasp opcodes.h opcode_table.gasp
 	-$(RM) opcodes/*.gasp tables/*.gasp
 	-$(RM) *.gasp.old */*.gasp.old
+	-$(RM) boards/*.so boards/*.rom
 	-$(RM) blitgen blittest minterms.c
 
 ci :	clean
