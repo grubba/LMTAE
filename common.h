@@ -1,7 +1,11 @@
 /*
- * $Id: common.h,v 1.2 1996/07/17 16:01:11 grubba Exp $
+ * $Id: common.h,v 1.3 1999/04/12 22:11:14 marcus Exp $
  *
- * $Log$
+ * $Log: common.h,v $
+ * Revision 1.2  1996/07/17 16:01:11  grubba
+ * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
+ * Hopefully all places got patched.
+ *
  *
  */
 
@@ -12,8 +16,12 @@
 #include "types.h"
 #endif /* TYPES_H */
 
-extern volatile u8 *chipmem;
-extern volatile u16 *custom;
+#ifndef RECOMP_H
+#include "recomp.h"
+#endif /* RECOMP_H */
+
+#define chipmem ((volatile u8 *)(memory+0))
+#define custom ((volatile u16 *)(memory+0xdff000))
 
 extern int devzero;
 

@@ -1,9 +1,14 @@
 /*
- * $Id: hardware.c,v 1.10 1996/07/19 16:46:15 grubba Exp $
+ * $Id: hardware.c,v 1.11 1999/04/12 22:11:17 marcus Exp $
  *
  * Hardware emulation for the M68000 to Sparc recompiler.
  *
  * $Log: hardware.c,v $
+ * Revision 1.10  1996/07/19 16:46:15  grubba
+ * Cleaned up interrupt handling.
+ * Cleaned up custom chip emulation.
+ * INTENA/INTREQ should work.
+ *
  * Revision 1.9  1996/07/17 16:01:31  grubba
  * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
  * Hopefully all places got patched.
@@ -64,6 +69,7 @@
 
 #include "recomp.h"
 #include "hardware.h"
+#include "blitter.h"
 
 /*
  * Hardware functions
@@ -454,6 +460,7 @@ void (*hw_init_tab[])(void) = {
   init_rtc,
   init_cia,
   init_custom,
+  init_blitter,
   init_zorro,
   NULL
 };

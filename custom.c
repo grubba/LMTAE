@@ -1,9 +1,12 @@
 /*
- * $Id: custom.c,v 1.8 1998/02/11 00:06:36 marcus Exp $
+ * $Id: custom.c,v 1.9 1999/04/12 22:11:15 marcus Exp $
  *
  * Custom chip emulation
  *
  * $Log: custom.c,v $
+ * Revision 1.8  1998/02/11 00:06:36  marcus
+ * Added a header file for timebase functions.
+ *
  * Revision 1.7  1998/02/10 17:20:50  marcus
  * Synchronized raster counter.
  *
@@ -160,6 +163,14 @@ static void custom_write_dmacon(U32 reg, U16 val)
       fprintf(stdout, "Blitter nice.\n");
     ((S16 *)memory)[0xdff002>>1] &= ~(val&0x7ff);
   }
+}
+
+static void custom_write_bltsize(U32 reg, U16 val)
+{
+  extern void doblit_async();
+
+  ((U16 *)memory)[0xdff058>>1] = val;
+  doblit_async();
 }
 
 /*

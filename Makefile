@@ -1,9 +1,12 @@
 #
-# $Id: Makefile,v 1.18 1998/02/11 00:05:18 marcus Exp $
+# $Id: Makefile,v 1.19 1999/04/12 22:11:18 marcus Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.18  1998/02/11 00:05:18  marcus
+# Better optimization and realtime libs.
+#
 # Revision 1.17  1998/02/10 17:21:05  marcus
 # Synchronized raster counter.
 #
@@ -149,7 +152,7 @@ recomp : recomp.o compglue.o peephole.o codeinfo.o\
 	interrupt.o hardware.o custom.o cia.o timebase.o zorro.o\
 	disassembler.o sanity.o setpatch.o\
 	gui/gui.o gui/regdump.o gui/info.o gui/disassembler.o\
-	opcodes.o memory.o templates/glue.o opcodes.o tables.o
+	opcodes.o memory.o templates/glue.o opcodes.o tables.o blitter.o
 
 citest : citest.o codeinfo.o
 

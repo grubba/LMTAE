@@ -1,9 +1,12 @@
 /*
- * $Id: custom_tab.c,v 1.5 1998/02/10 17:20:50 marcus Exp $
+ * $Id: custom_tab.c,v 1.6 1999/04/12 22:11:16 marcus Exp $
  *
  * Tables for the customchip address decoding.
  *
  * $Log: custom_tab.c,v $
+ * Revision 1.5  1998/02/10 17:20:50  marcus
+ * Synchronized raster counter.
+ *
  * Revision 1.4  1998/02/10 01:32:12  marcus
  * DMACON added.
  *
@@ -314,7 +317,7 @@ static void (*custom_write_tab[])(U32 reg, U16 val) = {
   NULL,			/* BLTAPTL */
   NULL,			/* BLTDPTH */
   NULL,			/* BLTDPTL */
-  NULL,			/* BLTSIZE */
+  custom_write_bltsize,	/* BLTSIZE */
   custom_read_only,	/* UNUSED */
   custom_read_only,	/* UNUSED */
   custom_read_only,	/* UNUSED */
