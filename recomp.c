@@ -1,9 +1,14 @@
 /*
- * $Id: recomp.c,v 1.15 1996/07/19 16:46:22 grubba Exp $
+ * $Id: recomp.c,v 1.16 1996/08/11 14:48:59 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.15  1996/07/19 16:46:22  grubba
+ * Cleaned up interrupt handling.
+ * Cleaned up custom chip emulation.
+ * INTENA/INTREQ should work.
+ *
  * Revision 1.14  1996/07/17 19:16:30  grubba
  * Implemented interrupts. None generated yet though.
  * Implemented STOP.
@@ -124,7 +129,7 @@ extern struct seg_info *code_tree;
 
 /* Debug level */
 
-U32 debuglevel;
+U32 debuglevel = 0;
 
 /*
  * Functions
@@ -355,6 +360,22 @@ int start_cpu(void)
 
 int devzero = -1;
 
+volatile void Usage(char *arg0, char *romdump)
+{
+  fprintf(stderr,
+	  "Usage:\n"
+	  "\t%s [flags] [romdump]\n\n"
+	  "Available flags are:\n"
+	  "-C\tVerbose compiler\n"
+	  "-D\tDisassemble\n"
+	  "-t\tRuntime trace\n"
+	  "\n"
+	  "+O\tTurn off SR optimization\n"
+	  "\nThe current romdump is \"%s\".\n",
+	  arg0, romdump);
+  exit(1);
+}
+
 int main(int argc, char **argv)
 {
   int i;
@@ -375,16 +396,16 @@ int main(int argc, char **argv)
 	debuglevel |= DL_RUNTIME_TRACE;
 	break;
       default:
-	fprintf(stderr,
-		"Usage:\n"
-		"\t%s [flags] [romdump]\n\n"
-		"Available flags are:\n"
-		"-C\tVerbose compiler\n"
-		"-D\tDisassemble\n"
-		"-t\tRuntime trace\n"
-		"\nThe current romdump is \"%s\".\n",
-		argv[0], romdump);
-	exit(1);
+	Usage(argv[0], romdump);
+	break;
+      }
+    } else if (argv[i][0] == '+') {
+      switch(argv[i][1]) {
+      case 'O':
+	debuglevel |= DL_NO_SR_OPTIMIZATION;
+	break;
+      default:
+	Usage(argv[0], romdump);
 	break;
       }
     } else {

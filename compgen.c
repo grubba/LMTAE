@@ -1,9 +1,13 @@
 /*
- * $Id: compgen.c,v 1.22 1996/08/10 18:48:55 grubba Exp $
+ * $Id: compgen.c,v 1.23 1996/08/11 14:48:46 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.22  1996/08/10 18:48:55  grubba
+ * Fixed some SR related bugs.
+ * Enabled SR optimization.
+ *
  * Revision 1.21  1996/08/10 15:47:56  grubba
  * Optimized some opcodes.
  * Prepared for partial SR optimization.
@@ -187,6 +191,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "types.h"
 
 #include "recomp.h"
 #include "m68k.h"
