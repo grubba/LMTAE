@@ -1,9 +1,13 @@
 /*
- * $Id: cia.c,v 1.5 1996/07/17 16:14:22 grubba Exp $
+ * $Id: cia.c,v 1.6 1998/02/10 15:48:56 marcus Exp $
  *
  * CIA emulation.
  *
  * $Log: cia.c,v $
+ * Revision 1.5  1996/07/17 16:14:22  grubba
+ * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
+ * Hopefully all places got patched this time.
+ *
  * Revision 1.4  1996/07/17 16:01:01  grubba
  * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
  * Hopefully all places got patched.
@@ -407,7 +411,7 @@ U32 read_cia(U32 offset, U32 base)
 {
   S8 reg = ((offset >> 8) & 0x1f);
 
-  return(cia_read_tab[reg](reg));
+  return((S32)cia_read_tab[reg](reg));
 }
 
 void write_cia(U32 offset, U32 val, U32 base)

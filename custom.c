@@ -1,9 +1,12 @@
 /*
- * $Id: custom.c,v 1.5 1998/02/10 02:13:09 marcus Exp $
+ * $Id: custom.c,v 1.6 1998/02/10 15:45:28 marcus Exp $
  *
  * Custom chip emulation
  *
  * $Log: custom.c,v $
+ * Revision 1.5  1998/02/10 02:13:09  marcus
+ * Non-word accesses to custom registers now possible.
+ *
  * Revision 1.4  1998/02/10 01:32:12  marcus
  * DMACON added.
  *
@@ -181,7 +184,7 @@ U32 read_custom(U32 addr, U32 base)
     S16 (*read_func)(U32) = custom_read_tab[reg];
 
     if (read_func) {
-      return(read_func(reg));
+      return((S32)read_func(reg));
     } else {
       return (((S16 *)memory)[addr >> 1]);
     }
@@ -194,9 +197,9 @@ U32 read_custom(U32 addr, U32 base)
 U32 read_custom_byte(U32 addr, U32 base)
 {
   if(addr&1)
-    return read_custom(addr-1, base)&0xff;
+    return (S32)(S8)(read_custom(addr-1, base));
   else
-    return (read_custom(addr, base)&0xff00)>>8;
+    return (S32)(read_custom(addr, base)>>8);
 }
 
 U32 read_custom_long(U32 addr, U32 base)
