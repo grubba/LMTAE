@@ -1,9 +1,12 @@
 	!
-	! $Id: glue.gasp,v 1.1.1.1 1996/06/30 23:51:55 grubba Exp $
+	! $Id: glue.gasp,v 1.2 1996/07/17 19:17:03 grubba Exp $
 	!
 	! Assembler template functions for the M68000 to Sparc recompiler.
 	!
 	! $Log: glue.gasp,v $
+	! Revision 1.1.1.1  1996/06/30 23:51:55  grubba
+	! Entry into CVS
+	!
 	! Revision 1.2  1996/06/30 23:04:32  grubba
 	! SR wasn't saved in some places.
 	!
@@ -47,6 +50,7 @@ _VEC_STORE_LONG	.reg	(0x000c)
 _VEC_STORE_WORD	.reg	(0x0010)
 _VEC_STORE_BYTE	.reg	(0x0014)
 _VEC_RESET	.reg	(0x0018)
+_VEC_STOP	.reg	(0x001c)
 
 	.extern	raise_exception
 
@@ -300,6 +304,7 @@ s_supervisor:
 	! Jump Vector table
 	!
 	.extern	reset_hw
+	.extern s_stop
 s_vec_tab:
 	.long	s_load_long
 	.long	s_load_word
@@ -308,6 +313,7 @@ s_vec_tab:
 	.long	s_store_word
 	.long	s_store_byte
 	.long	reset_hw
+	.long	s_stop
 	.long	0
 
 

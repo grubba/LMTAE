@@ -1,9 +1,13 @@
 /*
- * $Id: compgen.c,v 1.17 1996/07/17 16:01:15 grubba Exp $
+ * $Id: compgen.c,v 1.18 1996/07/17 19:16:23 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.17  1996/07/17 16:01:15  grubba
+ * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
+ * Hopefully all places got patched.
+ *
  * Revision 1.16  1996/07/16 23:29:17  grubba
  * MOVE_USP was broken -- It only saved the lowest byte of the USP.
  *
@@ -1143,12 +1147,22 @@ void as_nop(FILE *fp, U16 opcode, const char *mnemonic)
   /* No need to do anything */
 }
 
-#if 0
-int comp_stop(FILE *fp, U16 opcode, const char *mnemonic){
-  comp_supervisor(fp, opcode, mnemonic);
-  return(comp_illegal(fp, opcode, mnemonic));
+void tab_stop(FILE *fp, U16 opcode, const char *mnemonic)
+{
+  fprintf(fp, "0x%08x, opcode_4e72",
+	  TEF_SUPERVISOR | TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | TEF_SRC_IMM |
+	  TEF_TERMINATE);
 }
-#endif /* 0 */
+
+void as_stop(FILE *fp, U16 opcode, const char *mnemonic)
+{
+  fprintf(fp,
+	  "	st	%%acc1, [ %%regs + _SR ]\n"
+	  "	ld	[ %%vecs + _VEC_STOP ], %%o7\n"
+	  "	add	4, %%pc, %%i2\n"
+	  "	jmpl	%%o7, %%g0\n"
+	  "	restore\n");
+}
 
 void tab_rte(FILE *fp, U16 opcode, const char *mnemonic)
 {
@@ -3134,7 +3148,7 @@ struct opcode_info opcodes[] = {
   
   { 0xffff, 0x4e70, "RESET", head_default, tab_reset, as_reset, comp_default },
   { 0xffff, 0x4e71, "NOP", head_default, tab_nop, as_nop, comp_default },
-  { 0xffff, 0x4e72, "STOP", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffff, 0x4e72, "STOP", head_default, tab_stop, as_stop, comp_default },
   { 0xffff, 0x4e73, "RTE", head_default, tab_rte, as_rte, comp_default },
   { 0xffff, 0x4e74, "RTD", head_default, tab_rtd, as_rtd, comp_default },
   { 0xffff, 0x4e75, "RTS", head_default, tab_rts, as_rts, comp_default },
@@ -3288,6 +3302,7 @@ const char *gasp_head =
 "_VEC_STORE_WORD	.reg	(0x0010)\n"
 "_VEC_STORE_BYTE	.reg	(0x0014)\n"
 "_VEC_RESET	.reg	(0x0018)\n"
+"_VEC_STOP	.reg	(0x001c)\n"
 "\n\n";
 
 

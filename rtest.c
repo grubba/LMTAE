@@ -1,9 +1,13 @@
 /*
- * $Id: rtest.c,v 1.3 1996/07/17 16:01:51 grubba Exp $
+ * $Id: rtest.c,v 1.4 1996/07/17 19:16:32 grubba Exp $
  *
  * Test rpogram for the M68000 to Sparc recompiler.
  *
  * $Log: rtest.c,v $
+ * Revision 1.3  1996/07/17 16:01:51  grubba
+ * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
+ * Hopefully all places got patched.
+ *
  * Revision 1.2  1996/07/13 19:32:19  grubba
  * Now defaults to very little debuginfo.
  * Added (un|set)patch().
@@ -50,6 +54,7 @@ U32 debuglevel = ~0;
  */
 
 void reset_hw(void){}
+U32 s_stop(struct m_registers *regs, U8 *mem, U32 nextpc){}
 int load_hw_byte(){}
 int load_hw_short(){}
 int load_hw(){}

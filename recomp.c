@@ -1,9 +1,13 @@
 /*
- * $Id: recomp.c,v 1.13 1996/07/17 16:01:45 grubba Exp $
+ * $Id: recomp.c,v 1.14 1996/07/17 19:16:30 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.13  1996/07/17 16:01:45  grubba
+ * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
+ * Hopefully all places got patched.
+ *
  * Revision 1.12  1996/07/17 00:21:45  grubba
  * Added USP and SSP info to the Supervisor state change output.
  *
@@ -83,6 +87,7 @@
 #include <sys/mman.h>
 
 #include <thread.h>
+#include <synch.h>
 
 #include "types.h"
 
@@ -110,6 +115,12 @@ void check_sanity(struct code_info *ci, struct m_registers *regs, unsigned char 
 
 unsigned char *memory;
 extern struct seg_info *code_tree;
+
+/* Interrupt control */
+cond_t interrupt_change;
+mutex_t interrupt_lock;
+U32 interrupt_request = 0;
+
 
 /* Debug level */
 
@@ -187,8 +198,95 @@ U32 raise_exception(struct m_registers *regs, U16 *mem, U32 vec)
 
   abort();
 
-  /* FIXME: Old standard */
   return (*((U32 *)(memory + (vec<<2))));
+}
+
+void request_interrupt(int intnum) {
+  printf("request_interrupt(%d)\n", intnum);
+  if (intnum) {
+    U32 intmask;
+    if (intnum >= 7) {
+      intmask = 0xc0;
+    } else {
+      intmask = 1<<(intnum-1);
+    }
+    mutex_lock(&interrupt_lock);
+    interrupt_request |= intmask;
+    mutex_unlock(&interrupt_lock);
+    cond_signal(&interrupt_change);
+  } else {
+    abort();
+  }
+}
+
+U32 interrupt(struct m_registers *regs, U8 *mem, U32 nextpc, U32 mask)
+{
+#ifdef DEBUG
+  printf("interrupt(0x%08x, 0x%08x)\n", nextpc, mask);
+#endif /* DEBUG */
+  if (mask & 0x7f) {
+    U32 bitmask = 0xc0;
+    int intnum = 7;
+    U32 vecnum;
+
+    while (!(mask & bitmask)) {
+      bitmask >>= 1;
+      intnum--;
+    }
+    interrupt_request &= ~bitmask; 
+
+    mutex_unlock(&interrupt_lock);
+
+    if (!(regs->sr & 0x2000)) {
+      /* Was in Usermode */
+
+      /* Flip stacks */
+
+      regs->usp = regs->a7;
+      regs->a7 = regs->ssp;
+    }
+    
+    /* FIXME: Should check for code clobbering and legal memory */
+
+    /* Push vector number */
+    vecnum = VEC_SPURIOUS + intnum;
+    *((U16 *)(mem + regs->a7)) = vecnum;
+    regs->a7 -= 2;
+
+    /* Push next PC */
+    *((U16 *)(mem + regs->a7)) = (nextpc >> 16);
+    regs->a7 -= 2;
+    *((U16 *)(mem + regs->a7)) = nextpc;
+    regs->a7 -= 2;
+
+    /* Push old SR */
+    *((U16 *)(mem + regs->a7)) = regs->sr;
+    regs->a7 -= 2;
+
+    /* Update SR */
+    regs->sr &= ~0x0700;
+    regs->sr |= 0x2000 | (intnum << 8);
+
+    vecnum = regs->vbr + (vecnum << 2);
+
+    return ((((U16 *)(mem + vecnum))[0]<<16) | (((U16 *)(mem + vecnum))[1]));
+  } else {
+    abort();
+  }
+}
+
+U32 s_stop(struct m_registers *regs, U8 *mem, U32 nextpc)
+{
+  U32 interrupt_mask;
+
+  printf("Stop(0x%04x, 0x%08x)!\n", regs->sr, nextpc);
+
+  mutex_lock(&interrupt_lock);
+  while (!(interrupt_mask = (interrupt_request & (~0 << ((regs->sr & 0x0700)>>8))))) {
+    cond_wait(&interrupt_change, &interrupt_lock);
+  }
+
+  return(interrupt(regs, mem, nextpc, interrupt_mask));
 }
 
 volatile void compile_and_go(struct m_registers *regs, U32 maddr)
@@ -199,8 +297,17 @@ volatile void compile_and_go(struct m_registers *regs, U32 maddr)
   U32 oldsr = regs->sr;
 
   while (1) {
+    U32 interrupt_mask;
 
     /* FIXME: Should test for interrupts here */
+
+    mutex_lock(&interrupt_lock);
+
+    if ((interrupt_mask = (interrupt_request & (~0 << ((regs->sr & 0x0700)>>8))))) {
+      maddr = interrupt(regs, memory, maddr, interrupt_mask);
+    } else {
+      mutex_unlock(&interrupt_lock);
+    }
 
     if ((!maddr) || (maddr & 0xff000001)) {
       /* BUS ERROR or ADDRESS ERROR*/
@@ -382,6 +489,9 @@ int main(int argc, char **argv)
 	if ((rommem = (U8 *)mmap((caddr_t)(memory + 0x00f80000), 512*1024,
 				    PROT_READ, MAP_SHARED|MAP_FIXED, romfd, 0))) {
 	  if (rommem == memory + 0x00f80000) {
+
+	    mutex_init(&interrupt_lock, USYNC_THREAD, NULL);
+	    cond_init(&interrupt_change, USYNC_THREAD, NULL);
 
 	    start_info_window();
 
