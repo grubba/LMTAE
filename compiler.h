@@ -1,9 +1,12 @@
 /*
- * $Id: compiler.h,v 1.4 1996/08/04 14:22:50 grubba Exp $
+ * $Id: compiler.h,v 1.5 1996/08/04 16:25:15 grubba Exp $
  *
  * Includefile for the M68000 to Sparc recompiler.
  *
  * $Log: compiler.h,v $
+ * Revision 1.4  1996/08/04 14:22:50  grubba
+ * The compiler table now holds information needed for SR optimization.
+ *
  * Revision 1.3  1996/07/17 16:01:25  grubba
  * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
  * Hopefully all places got patched.
@@ -33,7 +36,9 @@
 struct tab_entry {
   U32		flags;
   U32		*template;
-  U32		sr_magic;
+  U16		sr_magic_reserved;
+  U8		sr_magic_needed;
+  U8		sr_magic_changed;
   const char	*mnemonic;
 };
 

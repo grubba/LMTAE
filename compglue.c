@@ -1,9 +1,13 @@
 /*
- * $Id: compglue.c,v 1.9 1996/07/21 17:39:17 grubba Exp $
+ * $Id: compglue.c,v 1.10 1996/08/04 16:25:11 grubba Exp $
  *
  * Help functions for the M68000 to Sparc compiler.
  *
  * $Log: compglue.c,v $
+ * Revision 1.9  1996/07/21 17:39:17  grubba
+ * Now does instruction flushes correctly (I think).
+ * Instruction flushing moved to peephole.c .
+ *
  * Revision 1.8  1996/07/17 16:01:22  grubba
  * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
  * Hopefully all places got patched.
@@ -96,6 +100,17 @@
  */
 
 static U32 ScratchPad[0x00080000];	/* 2Mb */
+
+static U16 SR_Unmagic[32] = {
+  0x0000, 0x0001, 0x0002, 0x0004,
+  0x0008, 0x0010, 0x0020, 0x0040,
+  0x0080, 0x0100, 0x0200, 0x0400,
+  0x0800, 0x1000, 0x2000, 0x4000,
+  0x0000, 0x0001, 0x0003, 0x0007,
+  0x000f, 0x001f, 0x003f, 0x007f,
+  0x00ff, 0x01ff, 0x03ff, 0x07ff,
+  0x0fff, 0x1fff, 0x3fff, 0x7fff
+};
 
 /*
  * Functions
@@ -290,12 +305,45 @@ void calc_ea(U32 **code, U32 *pc, U32 flags, U32 oldpc)
 U32 compile(struct code_info *ci)
 {
   U32 pc = ci->maddr>>1;
-  U32 *code = ScratchPad;
+  U32 *code_start;
+  U32 *code;
   U32 oldpc;
   U32 flags;
   U32 regs = 0;
   U16 *mem = (U16 *)memory;
   U16 opcode;
+
+  U32 sr_mask = 0x00000000;
+  U32 *sr_magic_start = ScratchPad;
+  U32 *sr_magic_pos = ScratchPad;
+
+  /* Forward SR scan pass */
+
+  do {
+    opcode = mem[pc++];
+    flags = compiler_tab[opcode].flags;
+
+    *(sr_magic_pos++) = (SR_Unmagic[compiler_tab[opcode].sr_magic_needed]<<16) |
+                        (SR_Unmagic[compiler_tab[opcode].sr_magic_changed]);
+
+    /* FIXME: Skip to next opcode */
+
+  } while (!(flags & TEF_TERMINATE));
+
+  code_start = sr_magic_pos;
+
+  /* Reverse SR scan pass */
+
+  while ((sr_magic_pos--) != sr_magic_start) {
+    U32 sr_magic = (*sr_magic_pos);
+
+    (*sr_magic_pos) &= sr_mask;
+    sr_mask &= ~sr_magic;
+    sr_mask |= (sr_magic>>16);
+  }
+
+  code = code_start;
+  pc = ci->maddr>>1;
 
   copy_template(&code, s_pre_amble);
 
@@ -708,7 +756,7 @@ U32 compile(struct code_info *ci)
   }
 #endif /* DEBUG */
 
-  PeepHoleOptimize(ci, ScratchPad, code);
+  PeepHoleOptimize(ci, code_start, code);
   return(pc<<1);
 }
 
