@@ -1,9 +1,12 @@
 /*
- * $Id: sanity.c,v 1.6 1996/07/15 02:49:09 grubba Exp $
+ * $Id: sanity.c,v 1.7 1996/07/17 00:23:39 grubba Exp $
  *
  * Sanity checks for the emulated computer.
  *
  * $Log: sanity.c,v $
+ * Revision 1.6  1996/07/15 02:49:09  grubba
+ * addlib_patch() used the wrong offset.
+ *
  * Revision 1.5  1996/07/14 21:44:26  grubba
  * Added support for adding hardware dynamically.
  * Added CIAA time of day clock (50Hz).
@@ -65,6 +68,7 @@ static ULONG (*old_alert)(struct m_registers *, void *);
 static ULONG (*old_addlib)(struct m_registers *, void *);
 static ULONG (*old_allocmem)(struct m_registers *, void *);
 static ULONG (*old_permit)(struct m_registers *, void *);
+static ULONG (*old_initresident)(struct m_registers *, void *);
 
 /*
  * Functions
@@ -129,6 +133,13 @@ static ULONG permit_patch(struct m_registers *regs, void *mem)
   return (old_permit(regs, mem));
 }
 
+static ULONG initresident_patch(struct m_registers *regs, void *mem)
+{
+  printf("InitResident(0x%08lx, 0x%08lx)\n", regs->a1, regs->d1);
+
+  return (old_initresident(regs, mem));
+}
+
 /*
  * Sanity functions
  */
@@ -144,6 +155,7 @@ void patch_SysBase(ULONG SysBase)
   old_addlib = setpatch(_ULONG(2 + SysBase - 0x018c), addlib_patch);
   old_allocmem = setpatch(_ULONG(2 + SysBase - 0x00c6), allocmem_patch);
   old_permit = setpatch(_ULONG(2 + SysBase - 0x008a), permit_patch);
+  old_initresident = setpatch(_ULONG(2 + SysBase - 0x0066), initresident_patch);
 #ifdef DEBUG
   printf("SysBase patched\n");
 #endif /* DEBUG */
@@ -184,9 +196,6 @@ void check_sanity(struct code_info *ci, struct m_registers *regs, unsigned char 
 	if (state != 3) {
 	  sprintf(Message, "SysBase at 0x%08lx\n", SysBase);
 	  state = 3;
-	}
-	if (!_ULONG(SysBase + 0x0142)) {
-	  printf("MemList is NULL!\n");
 	}
       }
     }
