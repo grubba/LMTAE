@@ -1,9 +1,14 @@
 /*
- * $Id: interrupt.c,v 1.2 1996/07/21 16:16:16 grubba Exp $
+ * $Id: interrupt.c,v 1.3 1998/02/10 01:01:15 marcus Exp $
  *
  * Interrupt handling
  *
  * $Log: interrupt.c,v $
+ * Revision 1.2  1996/07/21 16:16:16  grubba
+ * custom_write_intena() and custom_write_intreq() moved to interrupt.[ch].
+ * Serialport emulation on stdin/stdout added.
+ * Custom registers that are write-only are now declared as such.
+ *
  * Revision 1.1  1996/07/19 16:46:17  grubba
  * Cleaned up interrupt handling.
  * Cleaned up custom chip emulation.
@@ -55,7 +60,7 @@ void custom_write_intena(U32 reg, U16 val)
   U16 new_value;
 
   mutex_lock(&irq_ctrl_lock);
-  new_value = ((U16 *)memory)[0xdff01c];
+  new_value = ((U16 *)memory)[0xdff01c>>1];
 
   if (val & 0x8000) {
 #ifdef DEBUG
@@ -83,7 +88,7 @@ void custom_write_intreq(U32 reg, U16 val)
   U16 new_value;
 
   mutex_lock(&irq_ctrl_lock);
-  new_value = ((U16 *)memory)[0xdff01e];
+  new_value = ((U16 *)memory)[0xdff01e>>1];
 
   if (val & 0x8000) {
 #ifdef DEBUG
