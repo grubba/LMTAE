@@ -1,9 +1,13 @@
 /*
- * $Id: compgen.c,v 1.12 1996/07/15 20:32:10 grubba Exp $
+ * $Id: compgen.c,v 1.13 1996/07/16 22:28:54 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.12  1996/07/15 20:32:10  grubba
+ * Cleaned up shift code.
+ * Implemented C & X in ASR and LSR.
+ *
  * Revision 1.11  1996/07/15 14:35:22  grubba
  * Added Left and Right to the various shift mnemonics.
  *
@@ -270,6 +274,37 @@ void as_addi(FILE *fp, USHORT opcode, const char *mnemonic)
   fputs("	addcc	%acc1, %acc0, %acc0\n",	fp);
 }
 
+int head_addx(USHORT opcode)
+{
+  return(opcode == 0xd100);
+}
+
+void tab_addx(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  if (opcode & 0x0008) {
+    /* ADDX -(Ay), -(Ax) */
+    fprintf(fp, "0x%08x, opcode_d100",
+	    TEF_SRC | TEF_SRC_LOAD | (opcode & 0x0e00) | ((opcode & 0x00c0)<<9) |
+	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK | 0x8002 |
+	    TEF_FIX_SR);
+  } else {
+    /* ADDX Dy, Dx */
+    fprintf(fp, "0x%08x, opcode_d100",
+	    TEF_SRC | TEF_SRC_LOAD | (opcode & 0x0e00) | ((opcode & 0x00c0)<<9) |
+	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK |
+	    TEF_FIX_SR);
+  }
+}
+
+void as_addx(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  fprintf(fp,
+	  "	and	0x10, %%sr, %%o0\n"
+	  "	add	%%acc0, %%acc1, %%acc0\n"
+	  "	srl	%%o0, 8, %%o0\n"
+	  "	addcc	%%o0, %%acc0, %%acc0\n");
+}
+
 int head_andi(USHORT opcode)
 {
   return(opcode == 0x0200);
@@ -305,7 +340,16 @@ void tab_andi_sr(FILE *fp, USHORT opcode, const char *mnemonic)
 
 void as_andi_sr(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  fputs("	and	%acc1, %sr, %sr\n", fp);
+  fprintf(fp,
+	  "	sethi	%%hi(0x2000), %%o0\n"
+	  "	btst	%%o0, %%acc1\n"
+	  "	bne	0f\n"
+	  "	and	%acc1, %sr, %sr\n"
+	  "	! Stack flip-time.\n"
+	  "	ld	[ %%mem + _A7 ], %%o0\n"
+	  "	st	%%o0, [ %%mem + _SSP ]\n"
+	  "	ld	[ %%mem + _USP ], %%o0\n"
+	  "	st	%%o0, [ %%mem + _A7 ]\n");
 }
 
 int head_bchg(USHORT opcode)
@@ -518,13 +562,25 @@ void tab_cmp(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   fprintf(fp, "0x%08x, opcode_b000",
 	  TEF_SRC | TEF_SRC_LOAD | ((opcode & 0x00ff)<<9) |
-	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00c0) | ((opcode & 0x0e00)>>9) |
-	  TEF_FIX_SR);
+	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00c0) | ((opcode & 0x0e00)>>9));
 }
 
 void as_cmp(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  fprintf(fp, "	subcc	%%acc0, %%acc1, %%g0\n");
+  fprintf(fp,
+	  "	and	-16, %%sr, %%sr\n"
+	  "	subcc	%%acc0, %%acc1, %%g0\n"
+	  "	blt,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n"
+	  "	bvs,a	0f\n"
+	  "	or	2, %%sr, %%sr\n"
+	  "0:\n"
+	  "	bcs,a	0f\n"
+	  "	or	1, %%sr, %%sr\n"
+	  "0:\n");
 }
 
 int head_cmpa(USHORT opcode)
@@ -546,14 +602,26 @@ void tab_cmpa(FILE *fp, USHORT opcode, const char *mnemonic)
     /* Word */
     fprintf(fp, "0x%08x, opcode_b0c0",
 	    TEF_SRC | TEF_SRC_LOAD | ((opcode & 0x003f)<<9) | TEF_SRC_WORD |
-	    TEF_DST | TEF_DST_LOAD | ((opcode & 0x1e00)>>9) | TEF_DST_LONG |
-	    TEF_FIX_SR);
+	    TEF_DST | TEF_DST_LOAD | ((opcode & 0x1e00)>>9) | TEF_DST_LONG);
   }
 }
 
 void as_cmpa(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  fprintf(fp, "	subcc	%%acc0, %%acc1, %%g0\n");
+  fprintf(fp,
+	  "	and	-16, %%sr, %%sr\n"
+	  "	subcc	%%acc0, %%acc1, %%g0\n"
+	  "	blt,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n"
+	  "	bvs,a	0f\n"
+	  "	or	2, %%sr, %%sr\n"
+	  "0:\n"
+	  "	bcs,a	0f\n"
+	  "	or	1, %%sr, %%sr\n"
+	  "0:\n");
 }
 
 int head_cmpi(USHORT opcode)
@@ -566,12 +634,25 @@ void tab_cmpi(FILE *fp, USHORT opcode, const char *mnemonic)
   /* Since we always sign-extend to 32-bits, we can always do a longword compare */
   fprintf(fp, "0x%08x, opcode_0c00",
 	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | ((opcode & 0x00c0)<<9) |
-	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_FIX_SR);
+	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff));
 }
 
 void as_cmpi(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  fprintf(fp, "	subcc	%%acc0, %%acc1, %%g0\n");
+  fprintf(fp,
+	  "	and	-16, %%sr, %%sr\n"
+	  "	subcc	%%acc0, %%acc1, %%g0\n"
+	  "	blt,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n"
+	  "	bvs,a	0f\n"
+	  "	or	2, %%sr, %%sr\n"
+	  "0:\n"
+	  "	bcs,a	0f\n"
+	  "	or	1, %%sr, %%sr\n"
+	  "0:\n");
 }
 
 int head_cmpm(USHORT opcode)
@@ -589,7 +670,20 @@ void tab_cmpm(FILE *fp, USHORT opcode, const char *mnemonic)
 
 void as_cmpm(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  fprintf(fp, "	subcc	%%acc0, %%acc1, %%g0\n");
+  fprintf(fp,
+	  "	and	-16, %%sr, %%sr\n"
+	  "	subcc	%%acc0, %%acc1, %%g0\n"
+	  "	blt,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n"
+	  "	bvs,a	0f\n"
+	  "	or	2, %%sr, %%sr\n"
+	  "0:\n"
+	  "	bcs,a	0f\n"
+	  "	or	1, %%sr, %%sr\n"
+	  "0:\n");
 }
 
 
@@ -1229,7 +1323,14 @@ void as_swap(FILE *fp, USHORT opcode, const char *mnemonic)
   fprintf(fp,
 	  "	srl	%%acc0, 0x10, %%o0\n"
 	  "	sll	%%acc0, 0x10, %%acc0\n"
-	  "	or	%%acc0, %%o0, %%acc0\n");
+	  "	and	-16, %%sr, %%sr\n"
+	  "	or	%%acc0, %%o0, %%acc0\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	blt,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n");
 }
 
 int head_ext(USHORT opcode)
@@ -1258,7 +1359,14 @@ void as_ext(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   /* We already sign-extend on load */
   fprintf(fp,
-	  "	mov	%%acc1, %%acc0\n");
+	  "	and	-16, %%sr, %%sr\n"
+	  "	mov	%%acc1, %%acc0\n"
+	  "	cmp	%%acc1, %%g0\n"
+	  "	blt,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n");
 }
 
 int head_subi(USHORT opcode)
@@ -1823,9 +1931,10 @@ void as_divu(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	sub	%%acc0, %%o1, %%o1\n"
 	  "	sll	%%o1, 0x10, %%o1\n"
 	  "	or	%%o2, %%o1, %%acc0\n"
-	  "	bne,a	0f\n"
+	  "	bne,a	1f\n"
 	  "	or	2, %%sr, %%sr\n"
-	  "	cmp	%%o2, %%g0\n"
+	  "1:\n"
+	  "	andncc	%%acc0, %%o0, %%g0\n"
 	  "	be,a	0f\n"
 	  "	or	4, %%sr, %%sr\n"
 	  "	sethi	%%hi(0x8000), %%o0\n"
@@ -2177,6 +2286,28 @@ void as_asr_reg(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
+void as_asl_mem(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  fprintf(fp,
+	  "	and	-32, %%sr, %%sr\n"
+	  "	andcc	0x80, %%acc0, %%o0\n"
+	  "	sll	%%acc0, 1, %%acc0\n"
+	  "	bne,a	0f\n"
+	  "	or	0x11, %%sr, %%sr\n"	/* C & X */
+	  "0:\n"
+	  "	xor	%%o0, %%acc0, %%o0\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	ble,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"	/* N */
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"	/* Z */
+	  "0:\n"
+	  "	btst	0x80, %%o0\n"
+	  "	bne,a	0f\n"
+	  "	or	2, %%sr, %%sr\n"	/* V */
+	  "0:\n");
+}
+
 void as_lsr_mem(FILE *fp, USHORT opcode, const char *mnemonic)
 {
   /* Memory shift */
@@ -2263,41 +2394,15 @@ void as_lsr_reg(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-void as_lsl(FILE *fp, USHORT opcode, const char *mnemonic)
+void as_lsl_mem(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  /* FIXME: Need to fix SR! */
-  /* FIXME: C and X bits are not yet supported here! */
-  fprintf(fp, "	and	-32, %%sr, %%sr\n");
-  if ((opcode & 0x00c0) == 0x00c0) {
-    /* Memory shift */
-    fprintf(fp,
-	    "	btst	0x80, %%acc0\n"
-	    "	sll	%%acc0, 1, %%acc0\n"
-	    "	bne,a	0f\n"
-	    "	or	0x11, %%sr, %%sr\n"
-	    "0:\n");
-  } else {
-    /* Register shift */
-    if (opcode & 0x0020) {
-      /* Register */
-      fprintf(fp,
-	      "	mov	1, %%o0\n"
-	      "	and	0x3f, %%acc1, %%acc1\n"
-	      "	sll	%%o0, %%acc1, %%o0\n" );
-    } else {
-      /* Immediate */
-      fprintf(fp,
-	      "	mov	0x%08x, %%o0\n"
-	      "	mov	0x%02x, %%acc1\n",
-	      1 << ((opcode & 0x0e00)?((opcode & 0x0e00)>>9):8),
-	      (opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
-    }
-
-    fprintf(fp,
-	    "	btst	%%acc0, %%o0\n"
-	    "	sll	%%acc0, %%acc1, %%acc0\n");
-  }
   fprintf(fp,
+	  "	and	-32, %%sr, %%sr\n"
+	  "	btst	0x80, %%acc0\n"
+	  "	sll	%%acc0, 1, %%acc0\n"
+	  "	bne,a	0f\n"
+	  "	or	0x11, %%sr, %%sr\n"
+	  "0:\n"
 	  "	cmp	%%acc0, %%g0\n"
 	  "	ble,a	0f\n"
 	  "	or	8, %%sr, %%sr\n"
@@ -2306,153 +2411,322 @@ void as_lsl(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-void as_rod(FILE *fp, USHORT opcode, const char *mnemonic)
+void as_lsl_imm(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  /* FIXME: Doesn't clear C when rotating with 0 */
+  int shiftval = ((opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
+  int size = (8<<((opcode & 0xc0)>>6));
+  unsigned mask = 1<<(size - shiftval);
 
+  if (mask > 0xfff) {
+    fprintf(fp,
+	    "	and	-32, %%sr, %%sr\n"
+	    "	sethi	%%hi(0x%08x), %%o0\n"
+	    "	mov	0x%02x, %%acc1\n"
+	    "	btst	%%o0, %%acc0\n",
+	    mask, shiftval);
+  } else {
+    fprintf(fp,
+	    "	and	-32, %%sr, %%sr\n"
+	    "	mov	0x%02x, %%acc1\n"
+	    "	btst	0x%04x, %%acc0\n",
+	    shiftval, mask);
+  }
+  fprintf(fp,
+	  "	sll	%%acc0, %%acc1, %%acc0\n"
+	  "	bne,a	0f\n"
+	  "	or	0x11, %%sr, %%sr\n"
+	  "0:\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	ble,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n");
+}
+
+void as_lsl_reg(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  fprintf(fp,
+	  "	and	0x3f, %%acc1, %%acc1\n"
+	  "	mov	1, %%o0\n"
+	  "	add	-1, %%acc1, %%o1\n"
+	  "	and	-32, %%sr, %%sr\n"
+	  "	sll	%%o0, %%o1, %%o0\n"
+	  "	btst	%%acc0, %%o0\n"
+	  "	sll	%%acc0, %%acc1, %%acc0\n"
+	  "	bne,a	0f\n"
+	  "	or	0x11, %%sr, %%sr\n"
+	  "0:\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	ble,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "0:\n");
+}
+
+void as_ror_mem(FILE *fp, USHORT opcode, const char *mnemonic)
+{
   /* Check if operand zero */
+  fprintf(fp,
+	  "	and	-16, %%sr, %%sr\n"
+	  "	andcc	0xff, %%acc0, %%o0\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"	/* Z */
+	  "	btst	1, %%acc0\n"
+	  "	sll	%%acc0, 7, %%o0\n"
+	  "	srl	%%acc0, 1, %%acc0\n"
+	  "	or	%%acc0, %%o0, %%acc0\n"
+	  "	bne,a	0f\n"
+	  "	or	9, %%sr, %%sr\n"	/* N & C */
+	  "0:\n");
+}
+
+void as_ror_imm(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  int shiftval = ((opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
+  unsigned mask = 1 << (shiftval - 1);
+
+  fprintf(fp,
+	  "	and	-16, %%sr, %%sr\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"	/* Z */
+	  "	btst	0x%02x, %%acc0\n",
+	  mask);
+
+  switch (opcode & 0x00c0) {
+  case 0x00:
+    /* ROR.B */
+    fprintf(fp,
+	    "	and	0xff, %%acc0, %%o1\n"
+	    "	sll	%%acc0, 0x%02x, %%o0\n"
+	    "	srl	%%o1, 0x%02x, %%acc0\n"
+	    "	or	%%acc0, %%o0, %%acc0\n"
+	    "	bne,a	0f\n"
+	    "	or	9, %%sr, %%sr\n",	/* N & C */
+	    8 - shiftval, shiftval);
+    break;
+  case 0x40:
+    /* ROR.W */
+    fprintf(fp,
+	    "	sethi	%%hi(0xffff0000), %%o0\n"
+	    "	andn	%%acc0, %%o0, %%o0\n"
+	    "	sll	%%acc0, 0x%02x, %%acc0\n"
+	    "	srl	%%o0, 0x%02x, %%o0\n"
+	    "	or	%%acc0, %%o0, %%acc0\n"
+	    "	bne,a	0f\n"
+	    "	or	9, %%sr, %%sr\n",	/* N & C */
+	    16 - shiftval, shiftval);
+    break;
+  case 0x80:
+    /* ROR.L */
+    fprintf(fp,
+	    "	sll	%%acc0, 0x%02x, %%o0\n"
+	    "	srl	%%acc0, 0x%02x, %%acc0\n"
+	    "	or	%%acc0, %%o0, %%acc0\n"
+	    "	bne,a	0f\n"
+	    "	or	9, %%sr, %%sr\n",	/* N & C */
+	    32 - shiftval, shiftval);
+    break;
+  }
+  fprintf(fp, "0:\n");
+}
+
+void as_ror_reg(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  fprintf(fp,
+	  "	and	-16, %%sr, %%sr\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"	/* Z */
+	  "	and	0x3f, %%acc1, %%acc1\n");
+
+  switch (opcode & 0x00c0) {
+  case 0x00:
+    /* ROR.B */
+    fprintf(fp,
+	    "	mov	8, %%o0\n"
+	    "	and	0xff, %%acc0, %%acc0\n"
+	    "	sub	%%o0, %%acc1, %%o0\n"
+	    "	srl	%%acc0, %%acc1, %%o1\n"
+	    "	sll	%%acc0, %%o0, %%acc0\n"
+	    "	or	%%acc0, %%o1, %%acc0\n"
+	    "	btst	0x80, %%acc0\n"
+	    "	bne,a	0f\n"
+	    "	or	9, %%sr, %%sr\n");
+    break;
+  case 0x40:
+    /* ROR.W */
+    fprintf(fp,
+	    "	sethi	%%hi(0xffff0000), %%o2\n"
+	    "	mov	16, %%o0\n"
+	    "	andn	%%acc0, %%o2, %%acc0\n"
+	    "	sub	%%o0, %%acc1, %%o0\n"
+	    "	srl	%%acc0, %%acc1, %%o1\n"
+	    "	sll	%%acc0, %%o0, %%acc0\n"
+	    "	sethi	%%hi(0x8000), %%o2\n"
+	    "	or	%%acc0, %%o1, %%acc0\n"
+	    "	btst	%%acc0, %%o2\n"
+	    "	bne,a	0f\n"
+	    "	or	9, %%sr, %%sr\n");
+    break;
+  case 0x80:
+    /* ROR.L */
+    fprintf(fp,
+	    "	mov	32, %%o0\n"
+	    "	srl	%%acc0, %%acc1, %%o1\n"
+	    "	sub	%%o0, %%acc1, %%o0\n"
+	    "	sethi	%%hi(0x80000000), %%o2\n"
+	    "	sll	%%acc0, %%o0, %%acc0\n"
+	    "	btst	%%o2, %%acc0\n"
+	    "	or	%%acc0, %%o1, %%acc0\n"
+	    "	bne,a	0f\n"
+	    "	or	9, %%sr, %%sr\n");
+    break;
+  }
+  fprintf(fp, "0:\n");
+}
+
+void as_rol_mem(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  fprintf(fp,
+	  "	and	-16, %%sr, %%sr\n"
+	  "	andcc	0xff, %%acc0, %%o0\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"	/* Z */
+	  "	srl	%%o0, 7, %%o0\n"
+	  "	sll	%%acc0, 1, %%acc0\n"
+	  "	btst	1, %%o0\n"
+	  "	or	%%acc0, %%o0, %%acc0\n"
+	  "	bne,a	1f\n"
+	  "	or	1, %%sr, %%sr\n"	/* C */
+	  "1:\n"
+	  "	btst	0x80, %%acc0\n"
+	  "	bne,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"	/* N */
+	  "0:\n");
+}
+
+void as_rol_imm(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  int shiftval = ((opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
+
   fprintf(fp,
 	  "	and	-16, %%sr, %%sr\n"
 	  "	cmp	%%acc0, %%g0\n"
 	  "	be,a	0f\n"
 	  "	or	4, %%sr, %%sr\n");
 
-  if ((opcode & 0x00c0) == 0x00c0) {
-    /* Memory rotate */
-    /* Immediate 1 is inlined */
-  } else {
-    /* Register rotate */
-
-    if (opcode & 0x0020) {
-      /* Register rotate count */
-      fprintf(fp, "	and	0x3f, %%acc1, %%acc1\n");
-    } else {
-      /* Immediate rotate count */
-      fprintf(fp, "	mov	0x%02x, %%acc1\n",
-	      (opcode & 0x0e00)?((opcode & 0x0e00)>>9):8);
-    }
+  switch (opcode & 0x00c0) {
+  case 0x00:
+    /* ROL.B */
+    fprintf(fp,
+	    "	and	0xff, %%acc0, %%o0\n"
+	    "	sll	%%acc0, 0x%02x, %%acc0\n"
+	    "	srl	%%o0, 0x%02x, %%o0\n"
+	    "	and	1, %%o0, %%o1\n"
+	    "	and	0x80, %%acc0, %%o2\n"
+	    "	or	%%o0, %%acc0, %%acc0\n"
+	    "	srl	%%o2, 4, %%o0\n"
+	    "	or	%%o1, %%sr, %%sr\n"	/* C */
+	    "	or	%%o0, %%sr, %%sr\n",	/* N */
+	    shiftval, 8 - shiftval);
+    break;
+  case 0x40:
+    /* ROL.W */
+    fprintf(fp,
+	    "	sethi	%%hi(0xffff0000), %%o1\n"
+	    "	sll	%%acc0, 0x%02x, %%o0\n"
+	    "	andn	%%acc0, %%o1, %%acc0\n"
+	    "	sethi	%%hi(0x8000), %%o1\n"
+	    "	srl	%%acc0, 0x%02x, %%acc0\n"
+	    "	and	%%o0, %%o1, %%o0\n"
+	    "	and	1, %%acc0, %%o2\n"
+	    "	or	%%acc0, %%o1, %%acc0\n"
+	    "	srl	%%o0, 12, %%o0\n"
+	    "	or	%%o2, %%sr, %%sr\n"
+	    "	or	%%o0, %%sr, %%sr\n",
+	    shiftval, 16 - shiftval);
+    break;
+  case 0x80:
+    /* ROL.L */
+    fprintf(fp,
+	    "	sll	%%acc0, 0x%02x, %%o0\n"
+	    "	sethi	%%hi(0x80000000), %%o1\n"
+	    "	srl	%%acc0, 0x%02x, %%acc0\n"
+	    "	and	%%o0, %%o1, %%o1\n"
+	    "	and	1, %%acc0, %%o2\n"
+	    "	or	%%acc0, %%o0, %%acc0\n"
+	    "	srl	%%o1, 28, %%o1\n"
+	    "	or	%%o2, %%sr, %%sr\n"
+	    "	or	%%o1, %%sr, %%sr\n",
+	    shiftval, 32 - shiftval);
+    break;
   }
-  if (opcode & 0x0100) {
-    /* Rotate left */
-    switch (opcode & 0x00c0) {
-    case 0x00:
-      /* ROL.B */
-      fprintf(fp,
-	      "	mov	8, %%o0\n"
-	      "	sll	%%acc0, %%acc1, %%o1\n"
-	      "	sub	%%o0, %%acc1, %%o0\n"
-	      "	and	0xff, %%acc0, %%acc0\n"
-	      "	srl	%%acc0, %%o0, %%acc0\n"
-	      "	or	%%acc0, %%o1, %%acc0\n"
-	      "	and	1, %%acc0, %%o0\n"
-	      "	and	0x80, %%acc0, %%o1\n"
-	      "	or	%%o0, %%sr, %%sr\n"
-	      "	srl	%%o1, 4, %%o1\n"
-	      "	or	%%o1, %%sr, %%sr\n");
-      break;
-    case 0x40:
-      /* ROL.W */
-      fprintf(fp,
-	      "	mov	16, %%o0\n"
-	      "	sethi	%%hi(0xffff0000), %%o2\n"
-	      "	sll	%%acc0, %%acc1, %%o1\n"
-	      "	sub	%%o0, %%acc1, %%o0\n"
-	      "	andn	%%acc0, %%o2, %%acc0\n"
-	      "	srl	%%acc0, %%o0, %%acc0\n"
-	      "	or	%%acc0, %%o1, %%acc0\n"
-	      "	sethi	%%hi(0x8000), %%o1\n"
-	      "	and	1, %%acc0, %%o0\n"
-	      "	and	%%o1, %%acc0, %%o1\n"
-	      "	or	%%o0, %%sr, %%sr\n"
-	      "	srl	%%o1, 12, %%o1\n"
-	      "	or	%%o1, %%sr, %%sr\n");
-      break;
-    case 0x80:
-      /* ROL.L */
-      fprintf(fp,
-	      "	mov	32, %%o0\n"
-	      "	sll	%%acc0, %%acc1, %%o1\n"
-	      "	sub	%%o0, %%acc1, %%o0\n"
-	      "	sethi	%%hi(0x80000000), %%o2\n"
-	      "	srl	%%acc0, %%o0, %%acc0\n"
-	      "	and	%%o2, %%o1, %%o2\n"
-	      "	or	%%acc0, %%o1, %%acc0\n"
-	      "	srl	%%o2, 28, %%o1\n"
-	      "	and	1, %%acc0, %%o0\n"
-	      "	or	%%o1, %%sr, %%sr\n"
-	      "	or	%%o0, %%sr, %%sr\n");
-      break;
-    case 0xc0:
-      /* ROL.B #1, memory */
-      fprintf(fp,
-	      "	and	0xff, %%acc0, %%o0\n"
-	      "	sll	%%acc0, 1, %%acc0\n"
-	      "	srl	%%o0, 7, %%o0\n"
-	      "	and	0x80, %%acc0, %%o1\n"
-	      "	or	%%acc0, %%o0, %%acc0\n"
-	      "	srl	%%o1, 4, %%o1\n"
-	      "	or	%%sr, %%o0, %%sr\n"
-	      "	or	%%sr, %%o1, %%sr\n");
-      break;
-    }
-  } else {
-    /* Rotate right */
-    switch (opcode & 0x00c0) {
-    case 0x00:
-      /* ROR.B */
-      fprintf(fp,
-	      "	mov	8, %%o0\n"
-	      "	and	0xff, %%acc0, %%acc0\n"
-	      "	sub	%%o0, %%acc1, %%o0\n"
-	      "	srl	%%acc0, %%acc1, %%o1\n"
-	      "	sll	%%acc0, %%o0, %%acc0\n"
-	      "	or	%%acc0, %%o1, %%acc0\n"
-	      "	btst	0x80, %%acc0\n"
-	      " bne,a	0f\n"
-	      "	or	9, %%sr, %%sr\n");
-      break;
-    case 0x40:
-      /* ROR.W */
-      fprintf(fp,
-	      "	sethi	%%hi(0xffff0000), %%o2\n"
-	      "	mov	16, %%o0\n"
-	      "	andn	%%acc0, %%o2, %%acc0\n"
-	      "	sub	%%o0, %%acc1, %%o0\n"
-	      "	srl	%%acc0, %%acc1, %%o1\n"
-	      "	sll	%%acc0, %%o0, %%acc0\n"
-	      "	sethi	%%hi(0x8000), %%o2\n"
-	      "	or	%%acc0, %%o1, %%acc0\n"
-	      "	btst	%%acc0, %%o2\n"
-	      "	bne,a	0f\n"
-	      "	or	9, %%sr, %%sr\n");
-      break;
-    case 0x80:
-      /* ROR.L */
-      fprintf(fp,
-	      "	mov	32, %%o0\n"
-	      "	srl	%%acc0, %%acc1, %%o1\n"
-	      "	sub	%%o0, %%acc1, %%o0\n"
-	      "	sethi	%%hi(0x80000000), %%o2\n"
-	      "	sll	%%acc0, %%o0, %%acc0\n"
-	      "	btst	%%o2, %%acc0\n"
-	      "	or	%%acc0, %%o1, %%acc0\n"
-	      "	bne,a	0f\n"
-	      "	or	9, %%sr, %%sr\n");
-      break;
-    case 0xc0:
-      /* ROR.B #1, memory */
-      fprintf(fp,
-	      "	and	0xff, %%acc0, %%o0\n"
-	      "	sll	%%acc0, 7, %%acc0\n"
-	      "	srl	%%o0, 1, %%o0\n"
-	      "	and	1, %%acc0, %%o2\n"
-	      "	or	%%acc0, %%o0, %%acc0\n"
-	      "	and	0x80, %%o0, %%o1\n"
-	      "	srl	%%o1, 4, %%o1\n"
-	      "	or	%%sr, %%o2, %%sr\n"
-	      "	or	%%sr, %%o1, %%sr\n");
-      break;
-    }
+  fprintf(fp, "0:\n");
+}
+
+void as_rol_reg(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  /* FIXME: Doesn't clear C when rotating with 0 */
+
+  fprintf(fp,
+	  "	and	-16, %%sr, %%sr\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "	and	0x3f, %%acc1, %%acc1\n");
+
+  /* Rotate left */
+  switch (opcode & 0x00c0) {
+  case 0x00:
+    /* ROL.B */
+    fprintf(fp,
+	    "	mov	8, %%o0\n"
+	    "	sll	%%acc0, %%acc1, %%o1\n"
+	    "	sub	%%o0, %%acc1, %%o0\n"
+	    "	and	0xff, %%acc0, %%acc0\n"
+	    "	srl	%%acc0, %%o0, %%acc0\n"
+	    "	or	%%acc0, %%o1, %%acc0\n"
+	    "	and	1, %%acc0, %%o0\n"
+	    "	and	0x80, %%acc0, %%o1\n"
+	    "	or	%%o0, %%sr, %%sr\n"
+	    "	srl	%%o1, 4, %%o1\n"
+	    "	or	%%o1, %%sr, %%sr\n");
+    break;
+  case 0x40:
+    /* ROL.W */
+    fprintf(fp,
+	    "	mov	16, %%o0\n"
+	    "	sethi	%%hi(0xffff0000), %%o2\n"
+	    "	sll	%%acc0, %%acc1, %%o1\n"
+	    "	sub	%%o0, %%acc1, %%o0\n"
+	    "	andn	%%acc0, %%o2, %%acc0\n"
+	    "	srl	%%acc0, %%o0, %%acc0\n"
+	    "	or	%%acc0, %%o1, %%acc0\n"
+	    "	sethi	%%hi(0x8000), %%o1\n"
+	    "	and	1, %%acc0, %%o0\n"
+	    "	and	%%o1, %%acc0, %%o1\n"
+	    "	or	%%o0, %%sr, %%sr\n"
+	    "	srl	%%o1, 12, %%o1\n"
+	    "	or	%%o1, %%sr, %%sr\n");
+    break;
+  case 0x80:
+    /* ROL.L */
+    fprintf(fp,
+	    "	mov	32, %%o0\n"
+	    "	sll	%%acc0, %%acc1, %%o1\n"
+	    "	sub	%%o0, %%acc1, %%o0\n"
+	    "	sethi	%%hi(0x80000000), %%o2\n"
+	    "	srl	%%acc0, %%o0, %%acc0\n"
+	    "	and	%%o2, %%o1, %%o2\n"
+	    "	or	%%acc0, %%o1, %%acc0\n"
+	    "	srl	%%o2, 28, %%o1\n"
+	    "	and	1, %%acc0, %%o0\n"
+	    "	or	%%o1, %%sr, %%sr\n"
+	    "	or	%%o0, %%sr, %%sr\n");
+    break;
   }
   fprintf(fp, "0:\n");
 }
@@ -2888,34 +3162,34 @@ struct opcode_info opcodes[] = {
   { 0xf000, 0xc000, "AND", head_and, tab_and, as_and, comp_default },
 
   { 0xf0c0, 0xd0c0, "ADDA", head_adda, tab_adda, as_adda, comp_default },
-  { 0xf130, 0xd100, "ADDX", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf130, 0xd100, "ADDX", head_addx, tab_addx, as_addx, comp_default },
   { 0xf000, 0xd000, "ADD", head_add, tab_add, as_add, comp_default },
 
   { 0xffc0, 0xe0c0, "ASR", head_shift, tab_shift_mem, as_asr_mem, comp_default },
-  { 0xffc0, 0xe1c0, "ASL", head_shift, tab_shift_mem, as_lsl, comp_default }, /**/
+  { 0xffc0, 0xe1c0, "ASL", head_shift, tab_shift_mem, as_asl_mem, comp_default },
   { 0xffc0, 0xe2c0, "LSR", head_shift, tab_shift_mem, as_lsr_mem, comp_default },
-  { 0xffc0, 0xe3c0, "LSL", head_shift, tab_shift_mem, as_lsl, comp_default },
+  { 0xffc0, 0xe3c0, "LSL", head_shift, tab_shift_mem, as_lsl_mem, comp_default },
   { 0xffc0, 0xe4c0, "ROXR", head_shift, tab_shift_mem, as_illegal, comp_default },
   { 0xffc0, 0xe5c0, "ROXL", head_shift, tab_shift_mem, as_illegal, comp_default },
-  { 0xffc0, 0xe7c0, "ROR", head_shift, tab_shift_mem, as_rod, comp_default },
-  { 0xffc0, 0xe7c0, "ROL", head_shift, tab_shift_mem, as_rod, comp_default },
+  { 0xffc0, 0xe7c0, "ROR", head_shift, tab_shift_mem, as_ror_mem, comp_default },
+  { 0xffc0, 0xe7c0, "ROL", head_shift, tab_shift_mem, as_rol_mem, comp_default },
   { 0xf0c0, 0xe0c0, "UNKNOWN", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xf138, 0xe000, "ASR", head_shift, tab_shift_imm, as_asr_imm, comp_default },
-  { 0xf138, 0xe100, "ASL", head_shift, tab_shift_imm, as_lsl, comp_default }, /**/
+  { 0xf138, 0xe100, "ASL", head_shift, tab_shift_imm, as_lsl_imm, comp_default }, /**/
   { 0xf138, 0xe008, "LSR", head_shift, tab_shift_imm, as_lsr_imm, comp_default },
-  { 0xf138, 0xe108, "LSL", head_shift, tab_shift_imm, as_lsl, comp_default },
+  { 0xf138, 0xe108, "LSL", head_shift, tab_shift_imm, as_lsl_imm, comp_default },
   { 0xf138, 0xe010, "ROXR", head_shift, tab_shift_imm, as_illegal, comp_default },
   { 0xf138, 0xe110, "ROXL", head_shift, tab_shift_imm, as_illegal, comp_default },
-  { 0xf138, 0xe018, "ROR", head_shift, tab_shift_imm, as_rod, comp_default },
-  { 0xf138, 0xe118, "ROL", head_shift, tab_shift_imm, as_rod, comp_default },
+  { 0xf138, 0xe018, "ROR", head_shift, tab_shift_imm, as_ror_imm, comp_default },
+  { 0xf138, 0xe118, "ROL", head_shift, tab_shift_imm, as_rol_imm, comp_default },
   { 0xf138, 0xe020, "ASR", head_shift, tab_shift_reg, as_asr_reg, comp_default },
-  { 0xf138, 0xe120, "ASL", head_shift, tab_shift_reg, as_lsl, comp_default }, /**/
+  { 0xf138, 0xe120, "ASL", head_shift, tab_shift_reg, as_lsl_reg, comp_default }, /**/
   { 0xf138, 0xe028, "LSR", head_shift, tab_shift_reg, as_lsr_reg, comp_default },
-  { 0xf138, 0xe128, "LSL", head_shift, tab_shift_reg, as_lsl, comp_default },
+  { 0xf138, 0xe128, "LSL", head_shift, tab_shift_reg, as_lsl_reg, comp_default },
   { 0xf138, 0xe030, "ROXR", head_shift, tab_shift_reg, as_illegal, comp_default },
   { 0xf138, 0xe130, "ROXL", head_shift, tab_shift_reg, as_illegal, comp_default },
-  { 0xf138, 0xe038, "ROR", head_shift, tab_shift_reg, as_rod, comp_default },
-  { 0xf138, 0xe138, "ROL", head_shift, tab_shift_reg, as_rod, comp_default },
+  { 0xf138, 0xe038, "ROR", head_shift, tab_shift_reg, as_ror_reg, comp_default },
+  { 0xf138, 0xe138, "ROL", head_shift, tab_shift_reg, as_rol_reg, comp_default },
 
   { 0xf000, 0xf000, "LINE F", head_line_f, tab_line_f, as_line_f, comp_default },
 
