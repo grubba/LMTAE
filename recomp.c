@@ -1,9 +1,13 @@
 /*
- * $Id: recomp.c,v 1.5 1996/07/11 15:41:51 grubba Exp $
+ * $Id: recomp.c,v 1.6 1996/07/11 23:02:06 marcus Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.5  1996/07/11 15:41:51  grubba
+ * Now has a GUI!
+ * Some bug-fixes.
+ *
  * Revision 1.4  1996/07/08 21:16:00  grubba
  * Now spawns a separate thread for the CPU emulation.
  *
@@ -247,15 +251,16 @@ int start_cpu(void)
   return (thr_create(NULL, 0, cpu_thread_main, NULL, THR_DETACHED, &cpu_thread));
 }
 
+int devzero = -1;
+
 int main(int argc, char **argv)
 {
-  int zfd = -1;
   int romfd = -1;
   unsigned char *rommem;
-
-  if ((zfd = open("/dev/zero", O_RDONLY)) >= 0) {
+  
+  if ((devzero = open("/dev/zero", O_RDONLY)) >= 0) {
     if ((memory = (UBYTE *)mmap((caddr_t)NULL, 16*1024*1024, PROT_READ|PROT_WRITE,
-		       MAP_PRIVATE, zfd, 0))) {
+				MAP_PRIVATE, devzero, 0))) {
       if ((romfd = open("./ROM.dump", O_RDONLY)) >= 0) {
 	if ((rommem = (UBYTE *)mmap((caddr_t)(memory + 0x00f80000), 512*1024,
 				    PROT_READ, MAP_SHARED|MAP_FIXED, romfd, 0))) {
@@ -292,6 +297,8 @@ int main(int argc, char **argv)
 	      }
 	    }
 #endif /* DEBUG */
+
+	    zorro_addram(2);
 
 	    reset_hw();
 

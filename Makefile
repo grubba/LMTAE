@@ -1,9 +1,13 @@
 #
-# $Id: Makefile,v 1.6 1996/07/11 15:41:48 grubba Exp $
+# $Id: Makefile,v 1.7 1996/07/11 23:01:58 marcus Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.6  1996/07/11 15:41:48  grubba
+# Now has a GUI!
+# Some bug-fixes.
+#
 # Revision 1.5  1996/07/08 21:22:41  grubba
 # Added disassembler.
 #
@@ -45,7 +49,8 @@ CC = gcc
 GASP = gasp
 RM = rm -f
 CFLAGS = -g -O4711 -Wall -pedantic -DDEBUG -IAmigaInclude -I/usr/openwin/include -I/usr/X11/include
-LDLIBS = -lthread -lX -lX11 -lXpm -R/usr/lib:/usr/openwin/lib:/usr/X11/lib
+LDLIBS = -L/usr/lib -L/usr/openwin/lib -L/usr/X11/lib \
+	-lthread -ldl -lX -lX11 -lXpm -R/usr/lib:/usr/openwin/lib:/usr/X11/lib
 
 OPCODES = opcodes/opcode_0000.o opcodes/opcode_1000.o \
 	  opcodes/opcode_2000.o opcodes/opcode_3000.o \
@@ -93,7 +98,8 @@ ci :	clean
 rtest : rtest.o compglue.o peephole.o opcodes.o\
 	templates/glue.o memory.o opcodes.o tables.o
 
-recomp : recomp.o compglue.o peephole.o codeinfo.o hardware.o disassembler.o\
+recomp : recomp.o compglue.o peephole.o codeinfo.o hardware.o zorro.o\
+	disassembler.o\
 	gui/gui.o gui/regdump.o gui/info.o gui/disassembler.o\
 	opcodes.o memory.o templates/glue.o opcodes.o tables.o sanity.o
 
@@ -158,3 +164,5 @@ minterms.o : minterms.c blitter.h common.h
 sparcblit.o : sparcblit.c blitter.h common.h
 
 blittest.o: blittest.c blitter.h common.h
+
+zorro.o: zorro.c common.h recomp.h

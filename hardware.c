@@ -1,9 +1,12 @@
 /*
- * $Id: hardware.c,v 1.4 1996/07/08 21:18:12 grubba Exp $
+ * $Id: hardware.c,v 1.5 1996/07/11 23:02:02 marcus Exp $
  *
  * Hardware emulation for the M68000 to Sparc recompiler.
  *
  * $Log: hardware.c,v $
+ * Revision 1.4  1996/07/08 21:18:12  grubba
+ * Added some more hardware.
+ *
  * Revision 1.3  1996/07/05 02:09:22  grubba
  * Now detects the AutoConfig(TM) space.
  *
@@ -128,6 +131,8 @@ void reset_cia(ULONG base)
   fprintf(stderr, "CIA base is 0x%08lx\n", base);
 }
 
+#ifdef notdef
+
 static const char *auto_conf_fields[] = {
   "er_Type",
   "er_Product",
@@ -189,6 +194,26 @@ void reset_conf(ULONG base)
 {
   fprintf(stderr, "Autoconfig space at 0x%08lx\n", base);
 }
+
+#else
+
+#define read_conf     zorro_readlong
+#define read_conf_w   zorro_readword
+#define read_conf_b   zorro_readbyte
+#define write_conf    zorro_writelong
+#define write_conf_w  zorro_writeword
+#define write_conf_b  zorro_writebyte
+#define reset_conf    zorro_reset
+
+extern ULONG zorro_readlong(ULONG, ULONG);
+extern ULONG zorro_readword(ULONG, ULONG);
+extern ULONG zorro_readbyte(ULONG, ULONG);
+extern void zorro_writelong(ULONG, ULONG, ULONG);
+extern void zorro_writeword(ULONG, ULONG, ULONG);
+extern void zorro_writebyte(ULONG, ULONG, ULONG);
+extern void zorro_reset(ULONG);
+
+#endif
 
 ULONG read_slow_w(ULONG addr, ULONG base)
 {
