@@ -1,9 +1,12 @@
 /*
- * $Id: compgen.c,v 1.5 1996/07/03 15:01:14 grubba Exp $
+ * $Id: compgen.c,v 1.6 1996/07/03 15:39:47 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.5  1996/07/03 15:01:14  grubba
+ * Fixed a bug with OR Dn, <ea>. The mask was wrong.
+ *
  * Revision 1.4  1996/07/02 22:17:31  grubba
  * The immediate shift opcodes didn't shift when the arg was 0 i.e. 8.
  *
@@ -906,6 +909,35 @@ void as_clr(FILE *fp, USHORT opcode, const char *mnemonic)
 }
 
 int dis_clr(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
+
+int head_neg(USHORT opcode)
+{
+  return (opcode == 0x4400);
+}
+
+void tab_neg(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  fprintf(fp, "0x%08x, opcode_4400",
+	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_WRITE_BACK);
+}
+
+void as_neg(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  fprintf(fp,
+	  "	and	-32, %%sr, %%sr\n"
+	  "	subcc	%%g0, %%acc0, %%acc0\n"
+	  "	bcs,a	0f\n"
+	  "	or	0x11, %%sr, %%sr\n"
+	  "	or      0x04, %%sr, %%sr\n"
+	  "0:\n"
+	  "	blt,a	0f\n"
+	  "	or	0x08, %%sr, %%sr\n"
+	  "0:\n"
+	  "	bvs,a	0f\n"
+	  "	or	0x02, %%sr, %%sr\n"
+	  "0:\n");
+}
+
 int dis_neg(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_not(USHORT opcode)
@@ -2805,7 +2837,7 @@ struct opcode_info opcodes[] = {
   { 0xffc0, 0x42c0, "MOVE_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_move_ccr },
   { 0xff00, 0x4200, "CLR", head_clr, tab_clr, as_clr, comp_default, dis_clr },
   { 0xffc0, 0x44c0, "MOVE_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_move_ccr },
-  { 0xff00, 0x4400, "NEG", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_neg },
+  { 0xff00, 0x4400, "NEG", head_neg, tab_neg, as_neg, comp_default, dis_neg },
   { 0xffc0, 0x46c0, "MOVE_SR", head_move_sr, tab_move_sr, as_move_sr, comp_default, dis_move_sr },
   { 0xff00, 0x4600, "NOT", head_not, tab_not, as_not, comp_default, dis_not },
   
