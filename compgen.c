@@ -1,9 +1,13 @@
 /*
- * $Id: compgen.c,v 1.13 1996/07/16 22:28:54 grubba Exp $
+ * $Id: compgen.c,v 1.14 1996/07/16 22:36:56 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.13  1996/07/16 22:28:54  grubba
+ * Fixed major bug with ANDI_SR -- It didn't flip stacks when going to Usermode.
+ * Implemented ADDX.
+ *
  * Revision 1.12  1996/07/15 20:32:10  grubba
  * Cleaned up shift code.
  * Implemented C & X in ASR and LSR.
@@ -344,12 +348,12 @@ void as_andi_sr(FILE *fp, USHORT opcode, const char *mnemonic)
 	  "	sethi	%%hi(0x2000), %%o0\n"
 	  "	btst	%%o0, %%acc1\n"
 	  "	bne	0f\n"
-	  "	and	%acc1, %sr, %sr\n"
+	  "	and	%%acc1, %%sr, %%sr\n"
 	  "	! Stack flip-time.\n"
-	  "	ld	[ %%mem + _A7 ], %%o0\n"
-	  "	st	%%o0, [ %%mem + _SSP ]\n"
-	  "	ld	[ %%mem + _USP ], %%o0\n"
-	  "	st	%%o0, [ %%mem + _A7 ]\n");
+	  "	ld	[ %%regs + _A7 ], %%o0\n"
+	  "	st	%%o0, [ %%regs + _SSP ]\n"
+	  "	ld	[ %%regs + _USP ], %%o0\n"
+	  "	st	%%o0, [ %%regs + _A7 ]\n");
 }
 
 int head_bchg(USHORT opcode)
@@ -698,7 +702,17 @@ void tab_eori_sr(FILE *fp, USHORT opcode, const char *mnemonic)
 
 void as_eori_sr(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  fputs("	xor	%acc1, %sr, %sr\n", fp);
+  fprintf(fp,
+	  "	sethi	%%hi(0x2000), %%o0\n"
+	  "	btst	%%o0, %%acc1\n"
+	  "	be	0f\n"
+	  "	xor	%acc1, %sr, %sr\n"
+	  "	! Time to flip stacks.\n"
+	  "	ld	[ %%regs + _A7 ], %%o0\n"
+	  "	st	%%o0, [ %%regs + _SSP ]\n"
+	  "	ld	[ %%regs + _USP ], %%o0\n"
+	  "	st	%%o0, [ %%regs + _A7 ]\n"
+	  "0:\n");
 }
 
 int head_illegal(USHORT opcode)
@@ -938,7 +952,7 @@ void tab_ori_sr(FILE *fp, USHORT opcode, const char *mnemonic)
 
 void as_ori_sr(FILE *fp, USHORT opcode, const char *mnemonic)
 {
-  fputs("	or	%acc1, %sr, %sr\n", fp);
+  fprintf(fp, "	or	%%acc1, %%sr, %%sr\n");
 }
 
 int head_clr(USHORT opcode)
