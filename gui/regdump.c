@@ -1,9 +1,13 @@
 /*
- * $Id: regdump.c,v 1.1 1996/07/11 15:37:37 grubba Exp $
+ * $Id: regdump.c,v 1.2 1996/07/11 20:13:05 grubba Exp $
  *
  * User Interface for the M68000 to Sparc recompiler
  *
- * $Log$
+ * $Log: regdump.c,v $
+ * Revision 1.1  1996/07/11 15:37:37  grubba
+ * Graphics User-Interface files.
+ * Initial version.
+ *
  *
  */
 
@@ -45,6 +49,30 @@ struct regmon_args {
 /*
  * Functions
  */
+
+/*
+ * Callbacks
+ */
+
+void regmon_Stop_callback(void *arg)
+{
+  fprintf(stderr, "Stop!\n");
+}
+
+void regmon_Cont_callback(void *arg)
+{
+  fprintf(stderr, "Continue.\n");
+}
+
+void regmon_FPURegs_callback(void *arg)
+{
+  fprintf(stderr, "FPU Registers\n");
+}
+
+void regmon_Disassembly_callback(void *arg)
+{
+  fprintf(stderr, "Disassemble!\n");
+}
 
 void *register_monitor_main(void *arg)
 {
@@ -188,7 +216,9 @@ void *register_dump_main(void *arg)
     XGCValues gcvalues;
     GC labelgc;
     GC boxgc;
+    GC buttongc;
     XFontStruct *font_info;
+    XFontStruct *buttonfont_info;
 
   /* 235x348+483+614 */
 
@@ -208,6 +238,10 @@ void *register_dump_main(void *arg)
 			GCForeground | GCBackground | GCLineWidth | GCFillStyle,
 			&gcvalues);
 
+    buttongc = XCreateGC(display, window,
+			 GCForeground | GCBackground | GCLineWidth | GCFillStyle,
+			 &gcvalues);
+
     gcvalues.background = WhitePixel(display, screen_num);
 
     boxgc = XCreateGC(display, window,
@@ -222,6 +256,10 @@ void *register_dump_main(void *arg)
       XSetFont(display, labelgc, font_info->fid);
       XSetFont(display, boxgc, font_info->fid);
     }
+
+    buttonfont_info = XLoadQueryFont(display, "-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1");
+    
+    XSetFont(display, buttongc, buttonfont_info->fid);
 
     XFlush(display);	/* Probably needed to avoid race */
 
@@ -247,6 +285,19 @@ void *register_dump_main(void *arg)
 
     start_register_monitor("Status Register:", &regs->sr, 33, 260, 167, 21,
 			   window, labelgc, boxgc, bgPixel, dgPixel);
+
+    gui_AddButton("Stop", regmon_Stop_callback, NULL, 11, 288, 102, 24,
+		  window, buttongc, buttonfont_info, bgPixel, dgPixel);
+
+    gui_AddButton("Continue", regmon_Cont_callback, NULL, 117, 288, 102, 24,
+		  window, buttongc, buttonfont_info, bgPixel, dgPixel);
+
+    gui_AddButton("FPU Registers...", regmon_FPURegs_callback, NULL, 11, 316, 102, 24,
+		  window, buttongc, buttonfont_info, bgPixel, dgPixel);
+
+    gui_AddButton("Disassembly...", regmon_Disassembly_callback, regs, 117, 316, 102, 24,
+		  window, buttongc, buttonfont_info, bgPixel, dgPixel);
+		  
 
     XMapWindow(display, window);
 

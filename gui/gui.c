@@ -1,9 +1,13 @@
 /*
- * $Id: gui.c,v 1.1 1996/07/11 15:37:26 grubba Exp $
+ * $Id: gui.c,v 1.2 1996/07/11 20:13:01 grubba Exp $
  *
  * User Interface for the M68000 to Sparc recompiler
  *
- * $Log$
+ * $Log: gui.c,v $
+ * Revision 1.1  1996/07/11 15:37:26  grubba
+ * Graphics User-Interface files.
+ * Initial version.
+ *
  *
  */
 
@@ -26,6 +30,23 @@
 #include "../recomp.h"
 #include "../m68k.h"
 #include "../gui.h"
+
+/*
+ * Structures
+ */
+
+struct button_args {
+  const char *label;
+  void (*callback)(void *);
+  void *callbackarg;
+  int x, y;
+  unsigned width, height;
+  Window root;
+  GC gc;
+  XFontStruct *font;
+  int backgroundPixel;
+  int shadowPixel;
+};
 
 /*
  * Functions
@@ -82,6 +103,102 @@ int gui_AllocColor(Display *display, Colormap cmap,
     return(fallback);
   } else {
     return(color.pixel);
+  }
+}
+
+static void *gui_button_main(void *arg)
+{
+  struct button_args *args = (struct button_args *)arg;
+  Display *display;
+  
+  if ((display = XOpenDisplay(NULL))) {
+    int screen_num = DefaultScreen(display);
+    Window window;
+    XGCValues gcvalues;
+    GC localgc;
+    int xx, yy;
+    
+    window = XCreateSimpleWindow(display, args->root,
+				 args->x, args->y, args->width, args->height, 0,
+				 BlackPixel(display, screen_num),
+				 args->backgroundPixel);
+
+    localgc = XCreateGC(display, window, 0, &gcvalues);
+
+    xx = (args->width - XTextWidth(args->font, args->label, strlen(args->label)))/2;
+    yy = ((args->height - args->font->ascent - args->font->descent) / 2) +
+         args->font->ascent;
+    
+    XSelectInput(display, window,
+		 ExposureMask | ButtonPressMask | ButtonReleaseMask);
+
+    XMapWindow(display, window);
+
+    while (1) {
+      XEvent event;
+
+      XNextEvent(display, &event);
+
+      switch(event.type) {
+      case ButtonRelease:
+	fprintf(stderr, "Button release: %s\n", args->label);
+
+	args->callback(args->callbackarg);
+
+	/* Fall through */
+      case Expose:
+	if ((event.type == Expose) && (event.xexpose.count)) {
+	  break;
+	}
+
+	XSetForeground(display, localgc, WhitePixel(display, screen_num));
+	XDrawLine(display, window, localgc, 0, args->height-2, 0, 0);
+	XDrawLine(display, window, localgc, 0, 0, args->width-2, 0);
+	XSetForeground(display, localgc, args->shadowPixel);
+	XDrawLine(display, window, localgc,
+		  1, args->height-2, args->width-2, args->height-2);
+	XDrawLine(display, window, localgc,
+		  args->width-2, args->height-2, args->width-2, 1);
+	XSetForeground(display, localgc, BlackPixel(display, screen_num));
+	XDrawLine(display, window, localgc,
+		  0, args->height-1, args->width-1, args->height-1);
+	XDrawLine(display, window, localgc,
+		  args->width-1, args->height-1, args->width-1, 0);
+	XDrawString(display, window, args->gc, xx, yy, args->label, strlen(args->label));
+	break;
+      case ButtonPress:
+	break;
+      }
+    }
+  }
+  return (NULL);
+}
+
+void gui_AddButton(const char *label, void (*callback)(void *), void *callbackarg,
+		   int x, int y, unsigned width, unsigned height,
+		   Window window, GC gc, XFontStruct *font,
+		   int backgroundPixel, int shadowPixel)
+{
+  struct button_args *args;
+
+  if ((args = malloc(sizeof(struct button_args)))) {
+    thread_t button_thread;
+
+    args->label = label;
+    args->callback = callback;
+    args->callbackarg = callbackarg;
+    args->x = x;
+    args->y = y;
+    args->width = width;
+    args->height = height;
+    args->root = window;
+    args->gc = gc;
+    args->font = font;
+    args->backgroundPixel = backgroundPixel;
+    args->shadowPixel = shadowPixel;
+
+    thr_create(NULL, 0, gui_button_main, (void *)args,
+	       THR_DETACHED | THR_DAEMON, &button_thread);
   }
 }
 
