@@ -1,9 +1,15 @@
 /*
- * $Id: recomp.c,v 1.2 1996/07/01 19:16:59 grubba Exp $
+ * $Id: recomp.c,v 1.3 1996/07/05 02:10:30 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.2  1996/07/01 19:16:59  grubba
+ * Implemented ASL and ASR.
+ * Changed semantics for new_codeinfo(), it doesn't allocate space for the code.
+ * Added PeepHoleOptimize(). At the moment it just mallocs and copies the code.
+ * Removed some warnings.
+ *
  * Revision 1.1.1.1  1996/06/30 23:51:50  grubba
  * Entry into CVS
  *
@@ -147,10 +153,10 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
 #ifdef DEBUG
       if (segment) {
 	fprintf(stderr,
-		"0x%08lx called from 0x%08lx, New segment [0x%08lx - 0x%08lx]\n",
+		"0x%08lx called from 0x%08lx, New segment [0x%08lx - 0x%08lx]\r",
 		maddr, regs->pc, segment->maddr, segment->mend);
       } else {
-	fprintf(stderr, "0x%08lx called from 0x%08lx\n", maddr, regs->pc);
+	fprintf(stderr, "0x%08lx called from 0x%08lx\r", maddr, regs->pc);
       }
 #endif /* DEBUG */
     }
