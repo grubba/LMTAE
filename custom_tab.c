@@ -1,9 +1,12 @@
 /*
- * $Id: custom_tab.c,v 1.3 1998/02/10 01:02:00 marcus Exp $
+ * $Id: custom_tab.c,v 1.4 1998/02/10 01:32:12 marcus Exp $
  *
  * Tables for the customchip address decoding.
  *
  * $Log: custom_tab.c,v $
+ * Revision 1.3  1998/02/10 01:02:00  marcus
+ * DENISEID register implemented.
+ *
  * Revision 1.2  1996/07/21 16:16:13  grubba
  * custom_write_intena() and custom_write_intreq() moved to interrupt.[ch].
  * Serialport emulation on stdin/stdout added.
@@ -341,7 +344,7 @@ static void (*custom_write_tab[])(U32 reg, U16 val) = {
   NULL,			/* DIWSTOP */
   NULL,			/* DDFSTRT */
   NULL,			/* DDFSTOP */
-  NULL,			/* DMACON */
+  custom_write_dmacon,	/* DMACON */
   NULL,			/* CLXCON */
   custom_write_intena,	/* INTENA */
   custom_write_intreq,	/* INTREQ */

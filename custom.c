@@ -1,9 +1,12 @@
 /*
- * $Id: custom.c,v 1.3 1998/02/10 01:01:59 marcus Exp $
+ * $Id: custom.c,v 1.4 1998/02/10 01:32:12 marcus Exp $
  *
  * Custom chip emulation
  *
  * $Log: custom.c,v $
+ * Revision 1.3  1998/02/10 01:01:59  marcus
+ * DENISEID register implemented.
+ *
  * Revision 1.2  1996/07/21 16:16:10  grubba
  * custom_write_intena() and custom_write_intreq() moved to interrupt.[ch].
  * Serialport emulation on stdin/stdout added.
@@ -88,6 +91,46 @@ static void custom_write_serdat(U32 reg, U16 val)
 static S16 custom_read_deniseid(U32 reg)
 {
   return 0xfc; /* Enhanced HighRes Denise */
+}
+
+static void custom_write_dmacon(U32 reg, U16 val)
+{
+  S16 dma = ((S16 *)memory)[0xdff002>>1];
+  if(val&0x8000) {
+    /* enable DMA */
+    if(val & 0x10 & ~dma)
+      fprintf(stdout, "Disk DMA enabled.\n");
+    if(val & 0x20 & ~dma)
+      fprintf(stdout, "Sprite DMA enabled.\n");
+    if(val & 0x40 & ~dma)
+      fprintf(stdout, "Blitter DMA enabled.\n");
+    if(val & 0x80 & ~dma)
+      fprintf(stdout, "Copper DMA enabled.\n");
+    if(val & 0x100 & ~dma)
+      fprintf(stdout, "Bitplane DMA enabled.\n");
+    if(val & 0x200 & ~dma)
+      fprintf(stdout, "Master DMA enabled.\n");
+    if(val & 0x400 & ~dma)
+      fprintf(stdout, "Blitter nasty.\n");
+    ((S16 *)memory)[0xdff002>>1] |= val&0x7ff;
+  } else {
+    /* disable DMA */
+    if(val & 0x10 & dma)
+      fprintf(stdout, "Disk DMA disabled.\n");
+    if(val & 0x20 & dma)
+      fprintf(stdout, "Sprite DMA disabled.\n");
+    if(val & 0x40 & dma)
+      fprintf(stdout, "Blitter DMA disabled.\n");
+    if(val & 0x80 & dma)
+      fprintf(stdout, "Copper DMA disabled.\n");
+    if(val & 0x100 & dma)
+      fprintf(stdout, "Bitplane DMA disabled.\n");
+    if(val & 0x200 & dma)
+      fprintf(stdout, "Master DMA disabled.\n");
+    if(val & 0x400 & dma)
+      fprintf(stdout, "Blitter nice.\n");
+    ((S16 *)memory)[0xdff002>>1] &= ~(val&0x7ff);
+  }
 }
 
 /*
