@@ -1,9 +1,12 @@
 /*
- * $Id: interrupt.c,v 1.3 1998/02/10 01:01:15 marcus Exp $
+ * $Id: interrupt.c,v 1.4 1998/02/10 02:41:56 marcus Exp $
  *
  * Interrupt handling
  *
  * $Log: interrupt.c,v $
+ * Revision 1.3  1998/02/10 01:01:15  marcus
+ * Bugfix.
+ *
  * Revision 1.2  1996/07/21 16:16:16  grubba
  * custom_write_intena() and custom_write_intreq() moved to interrupt.[ch].
  * Serialport emulation on stdin/stdout added.
@@ -149,18 +152,18 @@ U32 interrupt(struct m_registers *regs, U8 *mem, U32 nextpc, U32 mask)
 
     /* Push vector number */
     vecnum = VEC_SPURIOUS + intnum;
-    *((U16 *)(mem + regs->a7)) = vecnum;
     regs->a7 -= 2;
+    *((U16 *)(mem + regs->a7)) = vecnum;
 
     /* Push next PC */
-    *((U16 *)(mem + regs->a7)) = (nextpc >> 16);
     regs->a7 -= 2;
     *((U16 *)(mem + regs->a7)) = nextpc;
     regs->a7 -= 2;
+    *((U16 *)(mem + regs->a7)) = (nextpc >> 16);
 
     /* Push old SR */
-    *((U16 *)(mem + regs->a7)) = regs->sr;
     regs->a7 -= 2;
+    *((U16 *)(mem + regs->a7)) = regs->sr;
 
     /* Update SR */
     regs->sr &= ~0x0700;
