@@ -1,9 +1,14 @@
 /*
- * $Id: compglue.c,v 1.5 1996/07/13 19:32:25 grubba Exp $
+ * $Id: compglue.c,v 1.6 1996/07/14 21:44:17 grubba Exp $
  *
  * Help functions for the M68000 to Sparc compiler.
  *
  * $Log: compglue.c,v $
+ * Revision 1.5  1996/07/13 19:32:25  grubba
+ * Now defaults to very little debuginfo.
+ * Added (un|set)patch().
+ * Patches added to MakeLibrary(), MakeFunctions(), Abort() and AddLibrary().
+ *
  * Revision 1.4  1996/07/10 20:22:08  grubba
  * Fixed bug where "or %lo(val), %g4, %ea" was generated instead of "or %lo(val), %g0, %ea".
  *
@@ -294,7 +299,8 @@ ULONG compile(struct code_info *ci)
     {
       extern ULONG opcode_4afc[];
       if (compiler_tab[opcode].template == opcode_4afc) {
-	DPRINTF(("!! ILLEGAL OPCODE !!"));
+	printf("!! ILLEGAL OPCODE (0x%04x, \"%s\")!!",
+	       opcode, compiler_tab[opcode].mnemonic);
       }
     }
 #endif /* DEBUG */
@@ -684,7 +690,7 @@ ULONG compile(struct code_info *ci)
   {
     extern ULONG opcode_4afc[];
     if (compiler_tab[opcode].template == opcode_4afc) {
-      DPRINTF(("!! ILLEGAL OPCODE !!"));
+      printf("!! ILLEGAL OPCODE !!");
       abort();
     }
   }

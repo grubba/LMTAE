@@ -1,13 +1,16 @@
 /*
- * $Id: sanity.c,v 1.4 1996/07/13 19:37:51 grubba Exp $
+ * $Id: sanity.c,v 1.5 1996/07/14 21:44:26 grubba Exp $
  *
  * Sanity checks for the emulated computer.
  *
  * $Log: sanity.c,v $
+ * Revision 1.4  1996/07/13 19:37:51  grubba
+ * typo fix.
+ *
  * Revision 1.3  1996/07/13 19:32:17  grubba
  * Now defaults to very little debuginfo.
  * Added (un|set)patch().
- * Patches added to MakeLibrary(), MakeFunctions(), Abort() and AddLibrary().
+ * Patches added to MakeLibrary(), MakeFunctions(), Alert() and AddLibrary().
  *
  * Revision 1.2  1996/07/01 00:13:56  grubba
  * It is now possible to compile from scratch.
@@ -55,6 +58,8 @@ static ULONG (*old_makelib)(struct m_registers *, void *);
 static ULONG (*old_makefunc)(struct m_registers *, void *);
 static ULONG (*old_alert)(struct m_registers *, void *);
 static ULONG (*old_addlib)(struct m_registers *, void *);
+static ULONG (*old_allocmem)(struct m_registers *, void *);
+static ULONG (*old_permit)(struct m_registers *, void *);
 
 /*
  * Functions
@@ -100,6 +105,21 @@ static ULONG addlib_patch(struct m_registers *regs, void *mem)
   return (old_addlib(regs, mem));
 }
 
+static ULONG allocmem_patch(struct m_registers *regs, void *mem)
+{
+  printf("AllocMem(0x%08lx, 0x%08lx) called from 0x%08lx\n",
+	 regs->d0, regs->d1, regs->pc);
+
+  return (old_allocmem(regs, mem));
+}
+
+static ULONG permit_patch(struct m_registers *regs, void *mem)
+{
+  printf("Permit()\n");
+
+  return (old_permit(regs, mem));
+}
+
 /*
  * Sanity functions
  */
@@ -113,6 +133,8 @@ void patch_SysBase(ULONG SysBase)
   old_makefunc = setpatch(_ULONG(2 + SysBase - 0x005a), makefunc_patch);
   old_alert = setpatch(_ULONG(2 + SysBase - 0x006c), alert_patch);
   old_addlib = setpatch(_ULONG(2 + SysBase - 0x018c), addlib_patch);
+  old_allocmem = setpatch(_ULONG(2 + SysBase - 0x00c6), allocmem_patch);
+  old_permit = setpatch(_ULONG(2 + SysBase - 0x008a), permit_patch);
 #ifdef DEBUG
   printf("SysBase patched\n");
 #endif /* DEBUG */
@@ -129,7 +151,7 @@ void check_sanity(struct code_info *ci, struct m_registers *regs, unsigned char 
   static meminfogiven = 0;
 
   if (*((ULONG *)memory) == 0x48454c50) {
-    fprintf(stderr, "HELP\n");
+    printf("HELP\n");
   }
 
   if (SysBase) {
@@ -154,15 +176,18 @@ void check_sanity(struct code_info *ci, struct m_registers *regs, unsigned char 
 	  sprintf(Message, "SysBase at 0x%08lx\n", SysBase);
 	  state = 3;
 	}
+	if (!_ULONG(SysBase + 0x0142)) {
+	  printf("MemList is NULL!\n");
+	}
       }
     }
   }
 
   if (state != oldstate) {
     if (count) {
-      fprintf(stderr, "SANITY: Last messages repeated %d times\n", count);
+      printf("SANITY: Last messages repeated %d times\n", count);
     }
-    fprintf(stderr, "SANITY: %s", Message);
+    printf("SANITY: %s", Message);
     count = 0;
   } else if ((state == 3) && (count == 0x0200)){
     /* FIXME: Adhoc */
@@ -173,11 +198,11 @@ void check_sanity(struct code_info *ci, struct m_registers *regs, unsigned char 
   if ((!meminfogiven) && (_USHORT(0x040e))) {
     meminfogiven = 1;
     if (_ULONG(0x040a)) {
-      fprintf(stderr, "SANITY: Memory found: type:0x%04x Free:0x%08lx Range:0x%08lx - 0x%08lx First free block:0x%08lx Name:\"%s\"\n",
+      printf("SANITY: Memory found: type:0x%04x Free:0x%08lx Range:0x%08lx - 0x%08lx First free block:0x%08lx Name:\"%s\"\n",
 	      _USHORT(0x040e), _ULONG(0x041c), _ULONG(0x0414),
 	      _ULONG(0x0418), _ULONG(0x0410), memory + _ULONG(0x040a));
     } else {
-      fprintf(stderr, "SANITY: Memory found: type:0x%04x Free:0x%08lx Range:0x%08lx - 0x%08lx First free block:0x%08lx No name\n",
+      printf("SANITY: Memory found: type:0x%04x Free:0x%08lx Range:0x%08lx - 0x%08lx First free block:0x%08lx No name\n",
 	      _USHORT(0x040e), _ULONG(0x041c), _ULONG(0x0414),
 	      _ULONG(0x0418), _ULONG(0x0410));
     }

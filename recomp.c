@@ -1,9 +1,14 @@
 /*
- * $Id: recomp.c,v 1.9 1996/07/13 19:32:09 grubba Exp $
+ * $Id: recomp.c,v 1.10 1996/07/14 21:44:23 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.9  1996/07/13 19:32:09  grubba
+ * Now defaults to very little debuginfo.
+ * Added (un|set)patch().
+ * Patches added to MakeLibrary(), MakeFunctions(), Abort() and AddLibrary().
+ *
  * Revision 1.8  1996/07/12 21:11:49  grubba
  * raise_exception() might work a bit better now.
  * Although at the moment it does an abort() instead of returning.
@@ -72,6 +77,7 @@
 #include "codeinfo.h"
 #include "m68k.h"
 #include "sparc.h"
+#include "hardware.h"
 
 /*
  * Define this to get runtime sanity checks of the emulated Amiga
@@ -182,7 +188,7 @@ volatile void compile_and_go(struct m_registers *regs, ULONG maddr)
 
     /* FIXME: Should test for interrupts here */
 
-    if (maddr & 0xff000001) {
+    if ((!maddr) || (maddr & 0xff000001)) {
       /* BUS ERROR or ADDRESS ERROR*/
       
       fprintf(stderr, "BUS ERROR! Bad address! 0x%08lx\n", maddr);
@@ -341,6 +347,8 @@ int main(int argc, char **argv)
     }
   }
 
+  thr_setconcurrency(128);
+
   if ((devzero = open("/dev/zero", O_RDONLY)) >= 0) {
     if ((memory = (UBYTE *)mmap((caddr_t)NULL, 16*1024*1024, PROT_READ|PROT_WRITE,
 				MAP_PRIVATE, devzero, 0))) {
@@ -350,6 +358,8 @@ int main(int argc, char **argv)
 	  if (rommem == memory + 0x00f80000) {
 
 	    start_info_window();
+
+	    init_hardware();
 
 #ifdef DEBUG
 	    printf("Kickstart V%d.%d\n"

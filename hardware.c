@@ -1,9 +1,14 @@
 /*
- * $Id: hardware.c,v 1.6 1996/07/13 19:32:15 grubba Exp $
+ * $Id: hardware.c,v 1.7 1996/07/14 21:44:21 grubba Exp $
  *
  * Hardware emulation for the M68000 to Sparc recompiler.
  *
  * $Log: hardware.c,v $
+ * Revision 1.6  1996/07/13 19:32:15  grubba
+ * Now defaults to very little debuginfo.
+ * Added (un|set)patch().
+ * Patches added to MakeLibrary(), MakeFunctions(), Abort() and AddLibrary().
+ *
  * Revision 1.5  1996/07/11 23:02:02  marcus
  * Real ZorroII emulation
  *
@@ -45,6 +50,7 @@
 #include <stdlib.h>
 
 #include "recomp.h"
+#include "hardware.h"
 
 /*
  * Hardware functions
@@ -99,39 +105,12 @@ void reset_custom(ULONG base)
   fprintf(stdout, "Custom base is 0x%08lx\n", base);
 }
 
-ULONG read_cia(ULONG addr, ULONG base)
+void init_custom(void)
 {
-  if (addr != 0x00bfe001) {
-    fprintf(stdout, "read_cia(0x%08lx, 0x%08lx)\n", addr, base);
-  }
-  return(memory[addr]);
-}
-
-void write_cia(ULONG addr, ULONG val, ULONG base)
-{
-  if (addr == 0x00bfe001) {
-    UBYTE bits = memory[addr] ^ ((UBYTE)val);
-
-    if (bits & 0x02) {
-      if (val & 0x02) {
-	fprintf(stdout, "LED off\n");
-      } else {
-	fprintf(stdout, "LED on\n");
-      }
-    }
-    if (bits & ~0x02) {
-      fprintf(stdout, "write_cia(0x%08lx, 0x%08lx, 0x%08lx\n", addr, val, base);
-    }
-  } else {
-    fprintf(stdout, "write_cia(0x%08lx, 0x%08lx, 0x%08lx)\n", addr, val, base);
-  }
-
-  memory[addr] = val;
-}
-
-void reset_cia(ULONG base)
-{
-  fprintf(stdout, "CIA base is 0x%08lx\n", base);
+  add_hw(0x00dff000, 0x00001000,
+	 NULL, read_custom, read_bad,
+	 write_bad, write_custom, write_bad,
+	 reset_custom);
 }
 
 #ifdef notdef
@@ -218,6 +197,14 @@ extern void zorro_reset(ULONG);
 
 #endif
 
+void init_zorro(void)
+{
+  add_hw(0x00e80000, 0x00080000,
+	 zorro_readlong, zorro_readword, zorro_readbyte,
+	 zorro_writelong, zorro_writeword, zorro_writebyte,
+	 zorro_reset);
+}
+
 ULONG read_slow_w(ULONG addr, ULONG base)
 {
   return(*((SHORT *)(memory + addr)));
@@ -243,6 +230,14 @@ void reset_slow(ULONG base)
   fprintf(stdout, "Ranger (SLOW) memory at 0x%08lx\n", base);
 }
 
+void init_slow(void)
+{
+  add_hw(0x00c00000, 0x001c0000,
+	 NULL, read_slow_w, read_slow_b,
+	 NULL, write_slow_w, write_slow_b,
+	 reset_slow);
+}
+
 ULONG read_rtc(ULONG addr, ULONG base)
 {
   fprintf(stdout, "read_rtc 0x%08lx\n", addr);
@@ -257,6 +252,14 @@ void write_rtc(ULONG addr, ULONG val, ULONG base)
 void reset_rtc(ULONG base)
 {
   fprintf(stdout, "Real time clock at 0x%08lx\n", base);
+}
+
+void init_rtc(void)
+{
+  add_hw(0x00dc0000, 0x00010000,
+	 read_rtc, read_rtc, read_rtc,
+	 write_rtc, write_rtc, write_rtc,
+	 reset_rtc);
 }
 
 /*
@@ -282,6 +285,10 @@ struct hw {
  * Globals
  */
 
+struct hw *hardware = NULL;
+int num_hw_banks = 0;
+
+#if 0
 struct hw hardware[] = {
   { 0x00bfd000, 0x00bfe000, read_bad, read_bad, read_cia, write_bad, write_bad, write_cia, reset_cia },
   { 0x00bfe000, 0x00bff000, read_bad, read_bad, read_cia, write_bad, write_bad, write_cia, reset_cia },
@@ -292,6 +299,8 @@ struct hw hardware[] = {
 };
 
 const int num_hw_banks = 6;
+
+#endif /* 0 */
 
 /*
  * Functions
@@ -424,3 +433,83 @@ ULONG clobber_code_short(ULONG maddr, USHORT val)
   return (0);
 }
 
+void add_hw(ULONG start, ULONG size,
+	    ULONG (*read_long)(ULONG, ULONG),
+	    ULONG (*read_word)(ULONG, ULONG),
+	    ULONG (*read_byte)(ULONG, ULONG),
+	    void (*write_long)(ULONG, ULONG, ULONG),
+	    void (*write_word)(ULONG, ULONG, ULONG),
+	    void (*write_byte)(ULONG, ULONG, ULONG),
+	    void (*reset)(ULONG))
+{
+  int i;
+
+  num_hw_banks++;
+  
+  if (!(num_hw_banks & (num_hw_banks - 1))) {
+    if (hardware) {
+      hardware = realloc(hardware, 2*num_hw_banks*sizeof(struct hw));
+    } else {
+      hardware = calloc(2*num_hw_banks, sizeof(struct hw));
+    }
+    if (!hardware) {
+      fprintf(stderr, "add_hw: Out of memory\n");
+      abort();
+    }
+  }
+  for (i = num_hw_banks - 2; i > 0; i--) {
+    if (hardware[i].start > start) {
+      hardware[i + 1] = hardware[i];
+    } else {
+      if (hardware[i].end > start) {
+	printf("Overlapping hardware registers (0x%08lx - 0x%08lx) and (0x%08lx - 0x%08lx)!\n",
+	       start, start + size, hardware[i].start, hardware[i].end);
+	abort();
+      }
+      break;
+    }
+  }
+  hardware[i + 1].start = start;
+  hardware[i + 1].end = start + size;
+  hardware[i + 1].read = read_long;
+  hardware[i + 1].read_short = read_word;
+  hardware[i + 1].read_byte = read_byte;
+  hardware[i + 1].write = write_long;
+  hardware[i + 1].write_short = write_word;
+  hardware[i + 1].write_byte = write_byte;
+  hardware[i + 1].reset = reset;
+}
+
+/*
+ * Hook in new default hardware here
+ */
+
+void init_slow(void);
+void init_rtc(void);
+void init_cia(void);
+void init_custom(void);
+void init_zorro(void);
+
+void (*hw_init_tab[])(void) = {
+  init_slow,
+  init_rtc,
+  init_cia,
+  init_custom,
+  init_zorro,
+  NULL
+};
+
+/*
+ * Master hardware initialization function
+ */
+
+void init_hardware(void)
+{
+  int i;
+
+  for (i = 0; hw_init_tab[i]; i++) {
+    printf("Initializing hardware: %d\r", i);
+    hw_init_tab[i]();
+  }
+  printf("\n");
+}
