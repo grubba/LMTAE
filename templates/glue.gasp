@@ -1,9 +1,13 @@
 	!
-	! $Id: glue.gasp,v 1.3 1996/08/10 18:52:05 grubba Exp $
+	! $Id: glue.gasp,v 1.4 1997/08/28 23:22:11 grubba Exp $
 	!
 	! Assembler template functions for the M68000 to Sparc recompiler.
 	!
 	! $Log: glue.gasp,v $
+	! Revision 1.3  1996/08/10 18:52:05  grubba
+	! Some more tastes of s_fix_sr.
+	! Now with s_sr_post_tab (table of post instruction SR fixup templates).
+	!
 	! Revision 1.2  1996/07/17 19:17:03  grubba
 	! Implemented interrupts. None generated yet though.
 	! Implemented STOP.
@@ -469,9 +473,179 @@ s_store_byte:
 
 
 
+	!
+	! Planar to chunky
+	!
+	! s_2plane_to_chunk(U32 *chunk, U32 offset, U32 *plane0, U32 *plane1)
+s_2plane_to_chunk:
+	save	%sp, -112, %sp
+	ld	[ %i2 + %i1], %o1	! plane0 data
+	addcc	%o1, %o1, %o1
+	ld	[ %i3 + %i1], %o2	! plane1 data
+	addx	%g0, %g0, %o0		! output data first bit
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0		! output data second bit
+	addcc	%o1, %o1, %o1
+	sll	%o0, 6, %o0		! six bits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	st	%o0, [ %i0 ]		! The first 4 pixels
+	addx	%g0, %g0, %o0		! output data first bit
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0		! output data second bit
+	addcc	%o1, %o1, %o1
+	sll	%o0, 6, %o0		! six bits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	st	%o0, [ %i0 ]		! Pixels 4 trough 7
+	addx	%g0, %g0, %o0		! output data first bit
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0		! output data second bit
+	addcc	%o1, %o1, %o1
+	sll	%o0, 6, %o0		! six bits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	st	%o0, [ %i0 ]		! Pixels 8 through 11
+	addx	%g0, %g0, %o0		! output data first bit
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0		! output data second bit
+	addcc	%o1, %o1, %o1
+	sll	%o0, 6, %o0		! six bits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	st	%o0, [ %i0 ]		! Pixels 12 through 15
+	addx	%g0, %g0, %o0		! output data first bit
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0		! output data second bit
+	addcc	%o1, %o1, %o1
+	sll	%o0, 6, %o0		! six bits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	st	%o0, [ %i0 ]		! Pixels 16 through 19
+	addx	%g0, %g0, %o0		! output data first bit
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0		! output data second bit
+	addcc	%o1, %o1, %o1
+	sll	%o0, 6, %o0		! six bits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	st	%o0, [ %i0 ]		! Pixels 20 trough 23
+	addx	%g0, %g0, %o0		! output data first bit
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0		! output data second bit
+	addcc	%o1, %o1, %o1
+	sll	%o0, 6, %o0		! six bits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	st	%o0, [ %i0 ]		! Pixels 24 through 27
+	addx	%g0, %g0, %o0		! output data first bit
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0		! output data second bit
+	addcc	%o1, %o1, %o1
+	sll	%o0, 6, %o0		! six bits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	sll	%o0, %o0, %o0		! sixbits of zero
+	addx	%o0, %o0, %o0
+	addcc	%o2, %o2, %o2
+	addx	%o0, %o0, %o0
+	addcc	%o1, %o1, %o1
+	st	%o0, [ %i0 ]		! Pixels 28 through 31
+	ret
+	restore
 
-
-
+	
 	.end
 
 
