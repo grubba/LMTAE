@@ -1,7 +1,10 @@
 /*
- * $Id: zorro.c,v 1.3 1996/07/13 20:52:46 marcus Exp $
+ * $Id: zorro.c,v 1.4 1996/07/13 21:09:55 marcus Exp $
  *
  * $Log: zorro.c,v $
+ * Revision 1.3  1996/07/13 20:52:46  marcus
+ * Forgot MAP_FIXED in unmapboard
+ *
  * Revision 1.2  1996/07/12 13:10:49  marcus
  * Fixed zorro_addboard to take filenames instead.
  *
@@ -99,7 +102,7 @@ static void unmapboard(struct board *b)
     if(b->func_setaddr)
       b->func_setaddr(NULL);
     if(b->baseslot>=Z2_MINSLOT && b->baseslot<=Z2_MAXSLOT)
-      for(s=0; s<b->numslots; s++)
+      for(s=0; s<b->mappedslots; s++)
         z2map[s+b->baseslot-Z2_MINSLOT]=NULL;
     if(mmap((caddr_t)b->mapped_at, SLOT2MEM(b->mappedslots),
 	    PROT_READ, MAP_FIXED|MAP_PRIVATE, devzero, 0)==MAP_FAILED)
