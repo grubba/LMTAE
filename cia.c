@@ -1,9 +1,13 @@
 /*
- * $Id: cia.c,v 1.2 1996/07/15 05:20:57 grubba Exp $
+ * $Id: cia.c,v 1.3 1996/07/17 00:18:13 grubba Exp $
  *
  * CIA emulation.
  *
  * $Log: cia.c,v $
+ * Revision 1.2  1996/07/15 05:20:57  grubba
+ * Added timer A and B.
+ * Real-time timers now go at 1/10th of real-speed.
+ *
  * Revision 1.1  1996/07/15 02:50:53  grubba
  * Cleaned up CIA emulation, and put it in a separate file.
  *
@@ -420,7 +424,7 @@ void reset_cia(ULONG base)
 
 void init_cia(void)
 {
-  add_hw(0x00bfd000, 0x00002000,
+  add_hw(0x00bfd000, 0x00002000, "CIA A & CIA B",
 	 read_bad, read_bad, read_cia,
 	 write_bad, write_bad, write_cia,
 	 reset_cia);
