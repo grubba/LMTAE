@@ -1,9 +1,13 @@
 #
-# $Id: Makefile,v 1.15 1996/08/11 17:36:05 grubba Exp $
+# $Id: Makefile,v 1.16 1997/08/28 23:56:09 grubba Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.15  1996/08/11 17:36:05  grubba
+# Now with timing statistics.
+# Added some more dependancies to the Makefile.
+#
 # Revision 1.14  1996/08/11 13:57:28  grubba
 # Added some missing dependancies.
 #
@@ -112,11 +116,11 @@ tables :
 	mkdir tables
 
 AmigaInclude :
-	ln -s /users/grubba/AmigaInclude .
+	ln -s /home/grubba/AmigaInclude .
 
 ROM.dump :
 	rm -f ROM.dump
-	ln -s /users/grubba/AmigaROM/kick37175.A500 ROM.dump
+	ln -s /home/grubba/AmigaROM/kick37175.A500 ROM.dump
 
 allboards :
 	@(cd boards; $(MAKE) all)
