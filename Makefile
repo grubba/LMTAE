@@ -1,9 +1,12 @@
 #
-# $Id: Makefile,v 1.8 1996/07/12 13:10:03 marcus Exp $
+# $Id: Makefile,v 1.9 1996/07/13 12:17:24 grubba Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.8  1996/07/12 13:10:03  marcus
+# Added rules for the boards subdirectory
+#
 # Revision 1.7  1996/07/11 23:01:58  marcus
 # Real ZorroII emulation
 #
@@ -54,7 +57,7 @@ RM = rm -f
 CFLAGS = -g -O4711 -Wall -pedantic -DDEBUG \
 	-IAmigaInclude -I/usr/openwin/include -I/usr/X11/include
 LDFLAGS = -L/usr/lib -L/usr/openwin/lib -L/usr/X11/lib \
-	-R/usr/lib:/usr/openwin/lib:/usr/X11/lib
+	-R/usr/lib:/usr/openwin/lib:/usr/X11/lib:/usr/local/lib
 LDLIBS = -lthread -ldl -lX -lX11 -lXpm
 
 OPCODES = opcodes/opcode_0000.o opcodes/opcode_1000.o \
