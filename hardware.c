@@ -1,9 +1,12 @@
 /*
- * $Id: hardware.c,v 1.2 1996/07/03 14:24:10 grubba Exp $
+ * $Id: hardware.c,v 1.3 1996/07/05 02:09:22 grubba Exp $
  *
  * Hardware emulation for the M68000 to Sparc recompiler.
  *
  * $Log: hardware.c,v $
+ * Revision 1.2  1996/07/03 14:24:10  grubba
+ * Fixed a bug with VHPOSR -- It incremented 0xdff004<<1. Amazing it didn't core!
+ *
  * Revision 1.1.1.1  1996/06/30 23:51:53  grubba
  * Entry into CVS
  *
@@ -122,6 +125,68 @@ void reset_cia(ULONG base)
   fprintf(stderr, "CIA base is 0x%08lx\n", base);
 }
 
+static const char *auto_conf_fields[] = {
+  "er_Type",
+  "er_Product",
+  "er_Flags",
+  "er_Reserved03",
+  "er_Manufacturer (HI)",
+  "er_Manufacturer (LOW)",
+  "er_SerialNumber (HI)",
+  "er_SerialNumber (HI-LOW)",
+  "er_SerialNumber (LOW-HI)",
+  "er_SerialNumber (LOW)",
+  "er_InitDiagVec (HI)",
+  "er_InitDiagVec (LOW)",
+  "er_Reserved0c",
+  "er_Reserved0d",
+  "er_Reserved0e",
+  "er_Reserved0f",
+  "ec_Interrupt",
+  "ec_Z3_HighByte",
+  "ec_BaseAddress",
+  "ec_Shutup",
+};
+
+ULONG read_conf(ULONG addr, ULONG base)
+{
+  ULONG addr2 = addr & 0xffff;
+
+  if (addr2 < 0x0050) {
+    fprintf(stderr, "read_conf 0x%08lx (%s)\n",
+	    addr,
+	    auto_conf_fields[addr2>>2]);
+  } else {
+    fprintf(stderr, "read_conf 0x%08lx (Unknown)\n", addr);
+  }
+  return(0);
+}
+
+#define read_conf_w	read_conf
+#define read_conf_b	read_conf
+
+void write_conf(ULONG addr, ULONG val, ULONG base)
+{
+  ULONG addr2 = addr & 0xffff;
+
+  if (addr2 < 0x0050) {
+    fprintf(stderr, "write_conf 0x%08lx (%s), 0x%08lx\n",
+	    addr,
+	    auto_conf_fields[addr2>>2],
+	    val);
+  } else {
+    fprintf(stderr, "read_conf 0x%08lx (Unknown), 0x%08lx\n", addr, val);
+  }
+}
+
+#define write_conf_w	write_conf
+#define write_conf_b	write_conf
+
+void reset_conf(ULONG base)
+{
+  fprintf(stderr, "Autoconfig space at 0x%08x\n", base);
+}
+
 /*
  * Higher level functions
  */
@@ -148,9 +213,10 @@ struct hw {
 struct hw hardware[] = {
   { 0x00bfe000, 0x00bff000, read_bad, read_bad, read_cia, write_bad, write_bad, write_cia, reset_cia },
   { 0x00dff000, 0x00e00000, NULL, read_custom, read_bad, write_bad, write_custom, write_bad, reset_custom },
+  { 0x00e80000, 0x00e8ffff, read_conf, read_conf_w, read_conf_b, write_conf, write_conf_w, write_conf_b, reset_conf },
 };
 
-const int num_hw_banks = 2;
+const int num_hw_banks = 3;
 
 /*
  * Functions
