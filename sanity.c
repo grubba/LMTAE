@@ -1,9 +1,14 @@
 /*
- * $Id: sanity.c,v 1.3 1996/07/13 19:32:17 grubba Exp $
+ * $Id: sanity.c,v 1.4 1996/07/13 19:37:51 grubba Exp $
  *
  * Sanity checks for the emulated computer.
  *
  * $Log: sanity.c,v $
+ * Revision 1.3  1996/07/13 19:32:17  grubba
+ * Now defaults to very little debuginfo.
+ * Added (un|set)patch().
+ * Patches added to MakeLibrary(), MakeFunctions(), Abort() and AddLibrary().
+ *
  * Revision 1.2  1996/07/01 00:13:56  grubba
  * It is now possible to compile from scratch.
  *
@@ -90,7 +95,7 @@ static ULONG addlib_patch(struct m_registers *regs, void *mem)
 
   name = _ULONG(regs->a1 + 0x0010);
 
-  printf("Name: 0x%08lx, \"%s\"\n", name, memory + name));
+  printf("Name: 0x%08lx, \"%s\"\n", name, memory + name);
 
   return (old_addlib(regs, mem));
 }
