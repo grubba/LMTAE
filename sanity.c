@@ -1,9 +1,14 @@
 /*
- * $Id: sanity.c,v 1.5 1996/07/14 21:44:26 grubba Exp $
+ * $Id: sanity.c,v 1.6 1996/07/15 02:49:09 grubba Exp $
  *
  * Sanity checks for the emulated computer.
  *
  * $Log: sanity.c,v $
+ * Revision 1.5  1996/07/14 21:44:26  grubba
+ * Added support for adding hardware dynamically.
+ * Added CIAA time of day clock (50Hz).
+ * Moved some debug output from stderr to stdout.
+ *
  * Revision 1.4  1996/07/13 19:37:51  grubba
  * typo fix.
  *
@@ -97,10 +102,14 @@ static ULONG addlib_patch(struct m_registers *regs, void *mem)
   ULONG name;
 
   printf("AddLibrary(0x%08lx)\n", regs->a1);
-
-  name = _ULONG(regs->a1 + 0x0010);
+ 
+  name = _ULONG(regs->a1 + 0x000a);
 
   printf("Name: 0x%08lx, \"%s\"\n", name, memory + name);
+
+  name = _ULONG(regs->a1 + 0x0018);
+
+  printf("ID:   0x%08lx, \"%s\"\n", name, memory + name);
 
   return (old_addlib(regs, mem));
 }
