@@ -1,9 +1,12 @@
 /*
- * $Id: regdump.c,v 1.2 1996/07/11 20:13:05 grubba Exp $
+ * $Id: regdump.c,v 1.3 1996/07/17 16:14:52 grubba Exp $
  *
  * User Interface for the M68000 to Sparc recompiler
  *
  * $Log: regdump.c,v $
+ * Revision 1.2  1996/07/11 20:13:05  grubba
+ * Added buttons to the CPU Monitor window. There is no feedback (yet).
+ *
  * Revision 1.1  1996/07/11 15:37:37  grubba
  * Graphics User-Interface files.
  * Initial version.
@@ -37,7 +40,7 @@
 
 struct regmon_args {
   const char *label;
-  volatile ULONG *addr;
+  volatile U32 *addr;
   int x, y;
   unsigned width, height;
   Window root;
@@ -159,7 +162,7 @@ void *register_monitor_main(void *arg)
 	  break;
 	}
       }
-      sprintf(string, "%08lx", *(args->addr));
+      sprintf(string, "%08x", *(args->addr));
 	  
       XDrawImageString(display, window, args->boxgc,
 		       divider + 5, 12, string, strlen(string));
@@ -172,7 +175,7 @@ void *register_monitor_main(void *arg)
   return(NULL);
 }
 
-void start_register_monitor(const char *name, volatile ULONG *addr,
+void start_register_monitor(const char *name, volatile U32 *addr,
 			    int x, int y, unsigned width, unsigned height,
 			    Window root, GC labelgc, GC boxgc,
 			    int bgPixel, int dgPixel)
@@ -266,14 +269,14 @@ void *register_dump_main(void *arg)
     for (i=0; i<8; i++) {
       sprintf(buffer, "D%d:", i);
 
-      start_register_monitor(strdup(buffer), ((ULONG *)regs)+i, 31, 13+24*i, 81, 21,
+      start_register_monitor(strdup(buffer), ((U32 *)regs)+i, 31, 13+24*i, 81, 21,
 			     window, labelgc, boxgc, bgPixel, dgPixel);
     }
 
     for (i=0; i<8; i++) {
       sprintf(buffer, "A%d:", i);
 
-      start_register_monitor(strdup(buffer), ((ULONG *)regs)+8+i, 119, 13+24*i, 81, 21,
+      start_register_monitor(strdup(buffer), ((U32 *)regs)+8+i, 119, 13+24*i, 81, 21,
 			     window, labelgc, boxgc, bgPixel, dgPixel);
     }
 

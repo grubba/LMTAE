@@ -1,9 +1,12 @@
 /*
- * $Id: gui.h,v 1.2 1996/07/11 20:14:21 grubba Exp $
+ * $Id: gui.h,v 1.3 1996/07/17 16:14:24 grubba Exp $
  *
  * User Interface for the M68000 to Sparc recompiler
  *
  * $Log: gui.h,v $
+ * Revision 1.2  1996/07/11 20:14:21  grubba
+ * Added gui_AddButton().
+ *
  * Revision 1.1  1996/07/11 15:38:57  grubba
  * Graphics User-Interface files.
  * Initial version.
@@ -55,7 +58,7 @@ int start_info_window(void);
 void *disassembler_main(void *arg);
 int start_disassembler(void);
 void *register_monitor_main(void *arg);
-void start_register_monitor(const char *name, volatile ULONG *addr,
+void start_register_monitor(const char *name, volatile U32 *addr,
 			    int x, int y, unsigned width, unsigned height,
 			    Window root, GC labelgc, GC boxgc,
 			    int bgPixel, int dgPixel);

@@ -1,9 +1,13 @@
 /*
- * $Id: cia.c,v 1.4 1996/07/17 16:01:01 grubba Exp $
+ * $Id: cia.c,v 1.5 1996/07/17 16:14:22 grubba Exp $
  *
  * CIA emulation.
  *
  * $Log: cia.c,v $
+ * Revision 1.4  1996/07/17 16:01:01  grubba
+ * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
+ * Hopefully all places got patched.
+ *
  * Revision 1.3  1996/07/17 00:18:13  grubba
  * Now registers with name in add_hw().
  *
@@ -237,7 +241,7 @@ void ciaa_write_tod(S8 reg, S8 val)
 
   ((S8 *)&ciaa_tod_offset)[0x0b - reg] = val;
 
-  printf("CIAA TOD = 0x%06lx\n", ciaa_tod_offset);
+  printf("CIAA TOD = 0x%06x\n", ciaa_tod_offset);
 
   ciaa_tod_base = gethrtime();
 }
@@ -415,7 +419,7 @@ void write_cia(U32 offset, U32 val, U32 base)
 
 void reset_cia(U32 base)
 {
-  fprintf(stdout, "CIA base is 0x%08lx\n", base);
+  fprintf(stdout, "CIA base is 0x%08x\n", base);
   ciaa_tod_state = 0;
   ciaa_tod_base = gethrtime();
   ciaa_tod_offset = 0;
