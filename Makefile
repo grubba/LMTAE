@@ -1,9 +1,12 @@
 #
-# $Id: Makefile,v 1.9 1996/07/13 12:17:24 grubba Exp $
+# $Id: Makefile,v 1.10 1996/07/13 12:45:52 grubba Exp $
 #
 # Makefile for the M68000 to Sparc recompiler
 #
 # $Log: Makefile,v $
+# Revision 1.9  1996/07/13 12:17:24  grubba
+# /usr/local/lib added to library search path to make it possible to run it on hanna.
+#
 # Revision 1.8  1996/07/12 13:10:03  marcus
 # Added rules for the boards subdirectory
 #
@@ -56,7 +59,7 @@ GASP = gasp
 RM = rm -f
 CFLAGS = -g -O4711 -Wall -pedantic -DDEBUG \
 	-IAmigaInclude -I/usr/openwin/include -I/usr/X11/include
-LDFLAGS = -L/usr/lib -L/usr/openwin/lib -L/usr/X11/lib \
+LDFLAGS = -L/usr/lib -L/usr/openwin/lib -L/usr/X11/lib -L/usr/local/lib\
 	-R/usr/lib:/usr/openwin/lib:/usr/X11/lib:/usr/local/lib
 LDLIBS = -lthread -ldl -lX -lX11 -lXpm
 
