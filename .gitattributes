@@ -8,6 +8,8 @@
 # Remove the corresponding line before committing
 # changes to these files.
 /Makefile foreign_ident
+/boards/Makefile foreign_ident
+/boards/hardfile.c foreign_ident
 /citest.c foreign_ident
 /codeinfo.c foreign_ident
 /codeinfo.h foreign_ident
