@@ -1,9 +1,14 @@
 /*
- * $Id: compgen.c,v 1.10 1996/07/14 15:14:58 grubba Exp $
+ * $Id: compgen.c,v 1.11 1996/07/15 14:35:22 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.10  1996/07/14 15:14:58  grubba
+ * Fixed bug with ROd.
+ * Added MULS.
+ * MULU now modifies SR.
+ *
  * Revision 1.9  1996/07/08 21:22:13  grubba
  * Added TEF_SRC_QUICK8 in some places.
  *
@@ -2884,19 +2889,31 @@ struct opcode_info opcodes[] = {
   { 0xf130, 0xd100, "ADDX", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xf000, 0xd000, "ADD", head_add, tab_add, as_add, comp_default },
 
-  { 0xfec0, 0xe0c0, "AS", head_asd, tab_asd, as_asd, comp_default },
-  { 0xfec0, 0xe2c0, "LS", head_lsd, tab_lsd, as_lsd, comp_default },
-  { 0xfec0, 0xe4c0, "ROX", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xfec0, 0xe6c0, "RO", head_rod, tab_rod, as_rod, comp_default },
+  { 0xffc0, 0xe0c0, "ASR", head_asd, tab_asd, as_asd, comp_default },
+  { 0xffc0, 0xe1c0, "ASL", head_asd, tab_asd, as_asd, comp_default },
+  { 0xffc0, 0xe2c0, "LSR", head_lsd, tab_lsd, as_lsd, comp_default },
+  { 0xffc0, 0xe3c0, "LSL", head_lsd, tab_lsd, as_lsd, comp_default },
+  { 0xffc0, 0xe4c0, "ROXR", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffc0, 0xe5c0, "ROXL", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xffc0, 0xe7c0, "ROR", head_rod, tab_rod, as_rod, comp_default },
+  { 0xffc0, 0xe7c0, "ROL", head_rod, tab_rod, as_rod, comp_default },
   { 0xf0c0, 0xe0c0, "UNKNOWN", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf038, 0xe000, "AS", head_asd, tab_asd, as_asd, comp_default },
-  { 0xf038, 0xe008, "LS", head_lsd, tab_lsd, as_lsd, comp_default },
-  { 0xf038, 0xe010, "ROX", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf038, 0xe018, "RO", head_rod, tab_rod, as_rod, comp_default },
-  { 0xf038, 0xe020, "AS", head_asd, tab_asd, as_asd, comp_default },
-  { 0xf038, 0xe028, "LS", head_lsd, tab_lsd, as_lsd, comp_default },
-  { 0xf038, 0xe030, "ROX", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf038, 0xe038, "RO", head_rod, tab_rod, as_rod, comp_default },
+  { 0xf138, 0xe000, "ASR", head_asd, tab_asd, as_asd, comp_default },
+  { 0xf138, 0xe100, "ASL", head_asd, tab_asd, as_asd, comp_default },
+  { 0xf138, 0xe008, "LSR", head_lsd, tab_lsd, as_lsd, comp_default },
+  { 0xf138, 0xe108, "LSL", head_lsd, tab_lsd, as_lsd, comp_default },
+  { 0xf138, 0xe010, "ROXR", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf138, 0xe110, "ROXL", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf138, 0xe018, "ROR", head_rod, tab_rod, as_rod, comp_default },
+  { 0xf138, 0xe118, "ROL", head_rod, tab_rod, as_rod, comp_default },
+  { 0xf138, 0xe020, "ASR", head_asd, tab_asd, as_asd, comp_default },
+  { 0xf138, 0xe120, "ASL", head_asd, tab_asd, as_asd, comp_default },
+  { 0xf138, 0xe028, "LSR", head_lsd, tab_lsd, as_lsd, comp_default },
+  { 0xf138, 0xe128, "LSL", head_lsd, tab_lsd, as_lsd, comp_default },
+  { 0xf138, 0xe030, "ROXR", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf138, 0xe130, "ROXL", head_not_implemented, tab_illegal, as_illegal, comp_default },
+  { 0xf138, 0xe038, "ROR", head_rod, tab_rod, as_rod, comp_default },
+  { 0xf138, 0xe138, "ROL", head_rod, tab_rod, as_rod, comp_default },
 
   { 0xf000, 0xf000, "LINE F", head_line_f, tab_line_f, as_line_f, comp_default },
 
