@@ -1,9 +1,12 @@
 /*
- * $Id: compgen.c,v 1.6 1996/07/03 15:39:47 grubba Exp $
+ * $Id: compgen.c,v 1.7 1996/07/04 18:08:23 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.6  1996/07/03 15:39:47  grubba
+ * Added opcode NEG.
+ *
  * Revision 1.5  1996/07/03 15:01:14  grubba
  * Fixed a bug with OR Dn, <ea>. The mask was wrong.
  *
@@ -1302,6 +1305,36 @@ void as_swap(FILE *fp, USHORT opcode, const char *mnemonic)
 
 int dis_swap(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 int dis_bkpt(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
+
+int head_ext(USHORT opcode)
+{
+  return(opcode == 0x4880);
+}
+
+void tab_ext(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  if (opcode & 0x0040) {
+    /* WORD => LONG */
+
+    fprintf(fp, "0x%08x, opcode_4880",
+	    TEF_SRC | TEF_SRC_WORD | TEF_SRC_LOAD | ((opcode & 0x0007)<<9) |
+	    TEF_DST | TEF_DST_LONG | (opcode & 0x0007) | TEF_WRITE_BACK);
+  } else {
+    /* BYTE => WORD */
+
+    fprintf(fp, "0x%08x, opcode_4880",
+	    TEF_SRC | TEF_SRC_BYTE | TEF_SRC_LOAD | ((opcode & 0x0007)<<9) |
+	    TEF_DST | TEF_DST_WORD | (opcode & 0x0007) | TEF_WRITE_BACK);
+  }
+}
+
+void as_ext(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  /* We already sign-extend on load */
+  fprintf(fp,
+	  "	mov	%%acc1, %%acc0\n");
+}
+
 int dis_ext(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 
 int head_subi(USHORT opcode)
@@ -1843,6 +1876,49 @@ void as_moveq(FILE *fp, USHORT opcode, const char *mnemonic)
 }
 
 int dis_moveq(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
+
+int head_divu(USHORT opcode)
+{
+  return(opcode == 0x80c0);
+}
+
+void tab_divu(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  fprintf(fp, "0x%08x, opcode_80c0",
+	  TEF_SRC | TEF_SRC_WORD | TEF_SRC_LOAD | ((opcode & 0x003f)<<9) |
+	  TEF_DST | TEF_DST_LONG | TEF_DST_LOAD | ((opcode & 0x0e00)>>9) |
+	  TEF_WRITE_BACK);
+}
+
+void as_divu(FILE *fp, USHORT opcode, const char *mnemonic)
+{
+  fprintf(fp,
+	  "	cmp	%%acc1, %%g0\n"
+	  "	and	-16, %%sr, %%sr\n"
+	  "	bne,a	0f\n"
+	  "	sethi	%%hi(0xffff0000), %%o0\n"
+	  "	! FIXME: Division by 0 Exception\n"
+	  "	! Insert code here\n"
+	  "0:\n"
+	  "	udiv	%%acc0, %%acc1, %%o2\n"
+	  "	btst	%%o2, %%o0\n"
+	  "	smul	%%o2, %%acc1, %%o1\n"
+	  "	andn	%%o2, %%o0, %%o2\n"
+	  "	sub	%%acc0, %%o1, %%o1\n"
+	  "	sll	%%o1, 0x10, %%o1\n"
+	  "	or	%%o2, %%o1, %%acc0\n"
+	  "	bne,a	0f\n"
+	  "	or	2, %%sr, %%sr\n"
+	  "	cmp	%%o2, %%g0\n"
+	  "	be,a	0f\n"
+	  "	or	4, %%sr, %%sr\n"
+	  "	sethi	%%hi(0x8000), %%o0\n"
+	  "	btst	%%o0, %%acc0\n"
+	  "	bne,a	0f\n"
+	  "	or	8, %%sr, %%sr\n"
+	  "0:\n");
+}
+
 int dis_divu(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 int dis_sbcd(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
 int dis_divs(FILE *fp, USHORT opcode, const char *mnemonic){ return(dis_illegal(fp, opcode, mnemonic)); }
@@ -2845,7 +2921,7 @@ struct opcode_info opcodes[] = {
   { 0xfff8, 0x4840, "SWAP", head_swap, tab_swap, as_swap, comp_default, dis_swap },
   { 0xfff8, 0x4848, "BKPT", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_bkpt },
   { 0xffc0, 0x4840, "PEA", head_pea, tab_pea, as_pea, comp_default, dis_pea },
-  { 0xffb8, 0x4880, "EXT", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_ext },
+  { 0xffb8, 0x4880, "EXT", head_ext, tab_ext, as_ext, comp_default, dis_ext },
   { 0xfb80, 0x4880, "MOVEM", head_movem, tab_movem, as_movem, comp_default, dis_movem },
 
   { 0xfff0, 0x4e60, "MOVE_USP", head_default, tab_move_usp, as_move_usp, comp_default, dis_move_usp },
@@ -2880,7 +2956,7 @@ struct opcode_info opcodes[] = {
 
   { 0xf000, 0x7000, "MOVEQ", head_moveq, tab_moveq, as_moveq, comp_default, dis_moveq },
 
-  { 0xf1c0, 0x80c0, "DIVU", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_divu },
+  { 0xf1c0, 0x80c0, "DIVU", head_divu, tab_divu, as_divu, comp_default, dis_divu },
   { 0xf1f0, 0x8100, "SBCD", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_sbcd },
   { 0xf1c0, 0x81c0, "DIVS", head_not_implemented, tab_illegal, as_illegal, comp_default, dis_divs },
   { 0xf000, 0x8000, "OR", head_or, tab_or, as_or, comp_default, dis_or },
