@@ -1,9 +1,12 @@
 /*
- * $Id: hardware.c,v 1.3 1996/07/05 02:09:22 grubba Exp $
+ * $Id: hardware.c,v 1.4 1996/07/08 21:18:12 grubba Exp $
  *
  * Hardware emulation for the M68000 to Sparc recompiler.
  *
  * $Log: hardware.c,v $
+ * Revision 1.3  1996/07/05 02:09:22  grubba
+ * Now detects the AutoConfig(TM) space.
+ *
  * Revision 1.2  1996/07/03 14:24:10  grubba
  * Fixed a bug with VHPOSR -- It incremented 0xdff004<<1. Amazing it didn't core!
  *
@@ -184,7 +187,48 @@ void write_conf(ULONG addr, ULONG val, ULONG base)
 
 void reset_conf(ULONG base)
 {
-  fprintf(stderr, "Autoconfig space at 0x%08x\n", base);
+  fprintf(stderr, "Autoconfig space at 0x%08lx\n", base);
+}
+
+ULONG read_slow_w(ULONG addr, ULONG base)
+{
+  return(*((SHORT *)(memory + addr)));
+}
+
+void write_slow_w(ULONG addr, ULONG val, ULONG base)
+{
+  *((USHORT *)(memory + addr)) = val;
+}
+
+ULONG read_slow_b(ULONG addr, ULONG base)
+{
+  return(*((BYTE *)(memory + addr)));
+}
+
+void write_slow_b(ULONG addr, ULONG val, ULONG base)
+{
+  *(memory + addr) = val;
+}
+
+void reset_slow(ULONG base)
+{
+  fprintf(stderr, "Ranger (SLOW) memory at 0x%08lx\n", base);
+}
+
+ULONG read_rtc(ULONG addr, ULONG base)
+{
+  fprintf(stderr, "read_rtc 0x%08lx\n", addr);
+  return(0);
+}
+
+void write_rtc(ULONG addr, ULONG val, ULONG base)
+{
+  fprintf(stderr, "write_rtc 0x%08lx, 0x%08lx\n", addr, val);
+}
+
+void reset_rtc(ULONG base)
+{
+  fprintf(stderr, "Real time clock at 0x%08lx\n", base);
 }
 
 /*
@@ -211,12 +255,15 @@ struct hw {
  */
 
 struct hw hardware[] = {
+  { 0x00bfd000, 0x00bfe000, read_bad, read_bad, read_cia, write_bad, write_bad, write_cia, reset_cia },
   { 0x00bfe000, 0x00bff000, read_bad, read_bad, read_cia, write_bad, write_bad, write_cia, reset_cia },
+  { 0x00c00000, 0x00dc0000, NULL, read_slow_w, read_slow_b, NULL, write_slow_w, write_slow_b, reset_slow },
+  { 0x00dc0000, 0x00dd0000, read_rtc, read_rtc, read_rtc, write_rtc, write_rtc, write_rtc, reset_rtc },
   { 0x00dff000, 0x00e00000, NULL, read_custom, read_bad, write_bad, write_custom, write_bad, reset_custom },
   { 0x00e80000, 0x00e8ffff, read_conf, read_conf_w, read_conf_b, write_conf, write_conf_w, write_conf_b, reset_conf },
 };
 
-const int num_hw_banks = 3;
+const int num_hw_banks = 6;
 
 /*
  * Functions
@@ -326,7 +373,12 @@ void store_hw(ULONG maddr, ULONG val)
   int i = find_hw(maddr);
 
   if (i != ~0) {
-    hardware[i].write(maddr, val, hardware[i].start);
+    if (hardware[i].write) {
+      hardware[i].write(maddr, val, hardware[i].start);
+    } else {
+      hardware[i].write_short(maddr, (val >> 16), hardware[i].start);
+      hardware[i].write_short(maddr + 2, val, hardware[i].start);
+    }
   } else {
     write_bad(maddr, val, 0);
   }
