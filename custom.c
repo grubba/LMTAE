@@ -1,9 +1,12 @@
 /*
- * $Id: custom.c,v 1.4 1998/02/10 01:32:12 marcus Exp $
+ * $Id: custom.c,v 1.5 1998/02/10 02:13:09 marcus Exp $
  *
  * Custom chip emulation
  *
  * $Log: custom.c,v $
+ * Revision 1.4  1998/02/10 01:32:12  marcus
+ * DMACON added.
+ *
  * Revision 1.3  1998/02/10 01:01:59  marcus
  * DENISEID register implemented.
  *
@@ -188,6 +191,19 @@ U32 read_custom(U32 addr, U32 base)
   }
 }
 
+U32 read_custom_byte(U32 addr, U32 base)
+{
+  if(addr&1)
+    return read_custom(addr-1, base)&0xff;
+  else
+    return (read_custom(addr, base)&0xff00)>>8;
+}
+
+U32 read_custom_long(U32 addr, U32 base)
+{
+  return (read_custom(addr, base)<<16)|(read_custom(addr+2, base)&0xffff);
+}
+
 void write_custom(U32 addr, U32 val, U32 base)
 {
   U32 reg = (addr & 0xfff)>>1;
@@ -212,6 +228,12 @@ void write_custom(U32 addr, U32 val, U32 base)
   }
 }
 
+void write_custom_long(U32 addr, U32 value, U32 base)
+{
+  write_custom(addr, value>>16, base);
+  write_custom(addr+2, value&0xffff, base);
+}
+
 void reset_custom(U32 base)
 {
   fprintf(stdout, "Custom base is 0x%08x\n", base);
@@ -222,8 +244,8 @@ void init_custom(void)
   thread_t serial_thread;
 
   add_hw(0x00dff000, 0x00001000, "Custom Chips", 
-	 NULL, read_custom, read_bad,
-	 write_bad, write_custom, write_bad,
+	 read_custom_long, read_custom, read_custom_byte,
+	 write_custom_long, write_custom, write_bad,
 	 reset_custom);
 
   /* Serial port */
