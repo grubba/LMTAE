@@ -1,9 +1,12 @@
 /*
- * $Id: compgen.c,v 1.23 1996/08/11 14:48:46 grubba Exp $
+ * $Id: compgen.c,v 1.24 1996/08/13 13:29:35 grubba Exp $
  *
  * Compilergenerator. Generates a compiler from M68000 to Sparc binary code.
  *
  * $Log: compgen.c,v $
+ * Revision 1.23  1996/08/11 14:48:46  grubba
+ * Added option to turn off SR optimization.
+ *
  * Revision 1.22  1996/08/10 18:48:55  grubba
  * Fixed some SR related bugs.
  * Enabled SR optimization.
@@ -279,7 +282,7 @@ int head_not_implemented(U16 opcode)
 void tab_default(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* LOAD_EA, LOAD_EO, WRITE_BACK */
-  fprintf(fp, "0x%08x, opcode_%04x",
+  fprintf(fp, "0x%08x, opcode_%04x, ",
 	  TEF_DST | TEF_DST_LOAD | TEF_WRITE_BACK |
 	  (opcode & TEF_DST_MASK), opcode);
 }
@@ -294,23 +297,16 @@ int comp_default(FILE *fp, U16 opcode, const char *mnemonic)
  * M68000 instruction implementations
  */
 
-int head_addi(U16 opcode)
-{
-  return (opcode == 0x0600);
-}
-
 void tab_addi(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* LOAD_IMM, LOAD_EA, LOAD_EO, WRITE_BACK */
-  fprintf(fp, "0x%08x, opcode_0600",
+  fprintf(fp,
+	  "0x%08x\n"
+	  "	addcc	%%acc1, %%acc0, %%acc0\n"
+	  "	.long	",
 	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | ((opcode & 0x00c0)<<9) |
 	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
-	  TEF_WRITE_BACK | TEF_FIX_SR);
-}
-
-void as_addi(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fputs("	addcc	%acc1, %acc0, %acc0\n",	fp);
+	  TEF_WRITE_BACK | TEF_FIX_SR | TEF_FASTMODE);
 }
 
 int head_addx(U16 opcode)
@@ -322,13 +318,13 @@ void tab_addx(FILE *fp, U16 opcode, const char *mnemonic)
 {
   if (opcode & 0x0008) {
     /* ADDX -(Ay), -(Ax) */
-    fprintf(fp, "0x%08x, opcode_d100",
+    fprintf(fp, "0x%08x, opcode_d100, ",
 	    TEF_SRC | TEF_SRC_LOAD | (opcode & 0x0e00) | ((opcode & 0x00c0)<<9) |
 	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK | 0x8002 |
 	    TEF_FIX_SR);
   } else {
     /* ADDX Dy, Dx */
-    fprintf(fp, "0x%08x, opcode_d100",
+    fprintf(fp, "0x%08x, opcode_d100, ",
 	    TEF_SRC | TEF_SRC_LOAD | (opcode & 0x0e00) | ((opcode & 0x00c0)<<9) |
 	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK |
 	    TEF_FIX_SR);
@@ -344,28 +340,21 @@ void as_addx(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	addcc	%%o0, %%acc0, %%acc0\n");
 }
 
-int head_andi(U16 opcode)
-{
-  return(opcode == 0x0200);
-}
-
 void tab_andi(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_0200",
-	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | ((opcode & 0x00c0)<<9) |
-	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_WRITE_BACK);
-}
-
-void as_andi(FILE *fp, U16 opcode, const char *mnemonic)
-{
   fprintf(fp,
-	  "	andcc	%%acc1, %%acc0, %%acc0\n");
+	  "0x%08x\n"
+	  "	andcc	%%acc1, %%acc0, %%acc0\n"
+	  "	.long	",
+	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | ((opcode & 0x00c0)<<9) |
+	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_WRITE_BACK |
+	  TEF_FASTMODE);
 }
 
 void tab_andi_sr(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* SUPERVISOR, IMMEDIATE */
-  fprintf(fp, "0x%08x, opcode_%04x",
+  fprintf(fp, "0x%08x, opcode_%04x, ",
 	  TEF_SUPERVISOR | TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | TEF_SRC_WORD,
 	  opcode);
 }
@@ -397,13 +386,13 @@ void tab_bchg(FILE *fp, U16 opcode, const char *mnemonic)
   if ((opcode & 0xffc0) == 0x0840) {
     /* Immediate */
     if (opcode & 0x0038) {
-      fprintf(fp, "0x%08x, opcode_0140",
+      fprintf(fp, "0x%08x, opcode_0140, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | TEF_SRC_IMM |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f) |
 	      TEF_WRITE_BACK);
     } else {
       /* Dn */
-      fprintf(fp, "0x%08x, opcode_0140",
+      fprintf(fp, "0x%08x, opcode_0140, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | TEF_SRC_IMM |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_LONG | (opcode & 0x003f) |
 	      TEF_WRITE_BACK);
@@ -411,13 +400,13 @@ void tab_bchg(FILE *fp, U16 opcode, const char *mnemonic)
   } else {
     /* LOAD_EA, LOAD_EO, WRITE_BACK */
     if (opcode & 0x0038) {
-      fprintf(fp, "0x%08x, opcode_0140",
+      fprintf(fp, "0x%08x, opcode_0140, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_LONG | (opcode & 0x0e00) |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f) |
 	      TEF_WRITE_BACK);
     } else {
       /* Dn */
-      fprintf(fp, "0x%08x, opcode_0140",
+      fprintf(fp, "0x%08x, opcode_0140, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_LONG | (opcode & 0x0e00) |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_LONG | (opcode & 0x003f) |
 	      TEF_WRITE_BACK);
@@ -444,26 +433,26 @@ void tab_bclr(FILE *fp, U16 opcode, const char *mnemonic)
   if ((opcode & 0xffc0) == 0x0880) {
     /* Immediate */
     if (opcode & 0x0038) {
-      fprintf(fp, "0x%08x, opcode_0180",
+      fprintf(fp, "0x%08x, opcode_0180, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | TEF_SRC_IMM |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f) |
 	      TEF_WRITE_BACK);
     } else {
       /* Dn */
-      fprintf(fp, "0x%08x, opcode_0180",
+      fprintf(fp, "0x%08x, opcode_0180, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | TEF_SRC_IMM |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_LONG | (opcode & 0x003f) |
 	      TEF_WRITE_BACK);
     }
   } else {
     if (opcode & 0x0038) {
-      fprintf(fp, "0x%08x, opcode_0180",
+      fprintf(fp, "0x%08x, opcode_0180, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | (opcode & 0x0e00) |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f) |
 	      TEF_WRITE_BACK);
     } else {
       /* Dn */
-      fprintf(fp, "0x%08x, opcode_0180",
+      fprintf(fp, "0x%08x, opcode_0180, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | (opcode & 0x0e00) |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_LONG | (opcode & 0x003f) |
 	      TEF_WRITE_BACK);
@@ -490,26 +479,26 @@ void tab_bset(FILE *fp, U16 opcode, const char *mnemonic)
   if ((opcode & 0xffc0) == 0x08c0) {
     /* Immediate */
     if (opcode & 0x0038) {
-      fprintf(fp, "0x%08x, opcode_01c0",
+      fprintf(fp, "0x%08x, opcode_01c0, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | TEF_SRC_IMM |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f) |
 	      TEF_WRITE_BACK);
     } else {
       /* Dn */
-      fprintf(fp, "0x%08x, opcode_01c0",
+      fprintf(fp, "0x%08x, opcode_01c0, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | TEF_SRC_IMM |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_LONG | (opcode & 0x003f) |
 	      TEF_WRITE_BACK);
     }
   } else {
     if (opcode & 0x0038) {
-      fprintf(fp, "0x%08x, opcode_01c0",
+      fprintf(fp, "0x%08x, opcode_01c0, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | (opcode & 0x0e00) |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f) |
 	      TEF_WRITE_BACK);
     } else {
       /* Dn */
-      fprintf(fp, "0x%08x, opcode_01c0",
+      fprintf(fp, "0x%08x, opcode_01c0, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | (opcode & 0x0e00) |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_LONG | (opcode & 0x003f) |
 	      TEF_WRITE_BACK);
@@ -538,24 +527,24 @@ void tab_btst(FILE *fp, U16 opcode, const char *mnemonic)
   if ((opcode & 0xffc0) == 0x0800) {
     /* Immediate */
     if (opcode & 0x0038) {
-      fprintf(fp, "0x%08x, opcode_0100",
+      fprintf(fp, "0x%08x, opcode_0100, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | TEF_SRC_IMM |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f));
     } else {
       /* Dn */
-      fprintf(fp, "0x%08x, opcode_0100",
+      fprintf(fp, "0x%08x, opcode_0100, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | TEF_SRC_IMM |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_LONG | (opcode & 0x003f));
     }
   } else {
     /* LOAD_EA, LOAD_EO, WRITE_BACK */
     if (opcode & 0x0038) {
-      fprintf(fp, "0x%08x, opcode_0100",
+      fprintf(fp, "0x%08x, opcode_0100, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | (opcode & 0x0e00) |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f));
     } else {
       /* Dn */
-      fprintf(fp, "0x%08x, opcode_0100",
+      fprintf(fp, "0x%08x, opcode_0100, ",
 	      TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | (opcode & 0x0e00) |
 	      TEF_DST | TEF_DST_LOAD | TEF_DST_LONG | (opcode & 0x003f));
     }
@@ -570,27 +559,13 @@ void as_btst(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	btst	%%acc0, %%o0\n");
 }
 
-int head_cmp(U16 opcode)
-{
-  return(opcode == 0xb000);
-}
-
 void tab_cmp(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_b000",
-	  TEF_SRC | TEF_SRC_LOAD | ((opcode & 0x00ff)<<9) |
+  fprintf(fp, "0x%08x\n"
+	  "	subcc	%%acc0, %%acc1, %%g0\n"
+	  "	.long	",
+	  TEF_SRC | TEF_SRC_LOAD | ((opcode & 0x00ff)<<9) | TEF_FASTMODE |
 	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00c0) | ((opcode & 0x0e00)>>9));
-}
-
-void as_cmp(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fprintf(fp,
-	  "	subcc	%%acc0, %%acc1, %%g0\n");
-}
-
-int head_cmpa(U16 opcode)
-{
-  return(opcode == 0xb0c0);
 }
 
 void tab_cmpa(FILE *fp, U16 opcode, const char *mnemonic)
@@ -599,66 +574,51 @@ void tab_cmpa(FILE *fp, U16 opcode, const char *mnemonic)
   /* FIXME: This will fail on .W  FIXED? */
   if (opcode & 0x100) {
     /* Long */
-    fprintf(fp, "0x%08x, opcode_b0c0",
+    fprintf(fp,
+	    "0x%08x\n"
+	    "	subcc	%%acc0, %%acc1, %%g0\n"
+	    "	.long	",
 	    TEF_SRC | TEF_SRC_LOAD | ((opcode & 0x003f)<<9) | TEF_SRC_LONG |
-	    TEF_DST | TEF_DST_LOAD | ((opcode & 0x1e00)>>9) | TEF_DST_LONG);
+	    TEF_DST | TEF_DST_LOAD | ((opcode & 0x1e00)>>9) | TEF_DST_LONG |
+	    TEF_FASTMODE);
   } else {
     /* Word */
-    fprintf(fp, "0x%08x, opcode_b0c0",
+    fprintf(fp,
+	    "0x%08x\n"
+	    "	subcc	%%acc0, %%acc1, %%g0\n"
+	    "	.long	",
 	    TEF_SRC | TEF_SRC_LOAD | ((opcode & 0x003f)<<9) | TEF_SRC_WORD |
-	    TEF_DST | TEF_DST_LOAD | ((opcode & 0x1e00)>>9) | TEF_DST_LONG);
+	    TEF_DST | TEF_DST_LOAD | ((opcode & 0x1e00)>>9) | TEF_DST_LONG |
+	    TEF_FASTMODE);
   }
-}
-
-void as_cmpa(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fprintf(fp,
-	  "	subcc	%%acc0, %%acc1, %%g0\n");
-}
-
-int head_cmpi(U16 opcode)
-{
-  return(opcode == 0x0c00);
 }
 
 void tab_cmpi(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* Since we always sign-extend to 32-bits, we can always do a longword compare */
-  fprintf(fp, "0x%08x, opcode_0c00",
-	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | ((opcode & 0x00c0)<<9) |
-	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff));
-}
-
-void as_cmpi(FILE *fp, U16 opcode, const char *mnemonic)
-{
   fprintf(fp,
-	  "	subcc	%%acc0, %%acc1, %%g0\n");
-}
-
-int head_cmpm(U16 opcode)
-{
-  return(opcode == 0xb108);
+	  "0x%08x\n"
+	  "	subcc	%%acc0, %%acc1, %%g0\n"
+	  "	.long	",
+	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | ((opcode & 0x00c0)<<9) |
+	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_FASTMODE);
 }
 
 void tab_cmpm(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_b108",
+  fprintf(fp,
+	  "0x%08x\n"
+	  "	subcc	%%acc0, %%acc1, %%g0\n"
+	  "	.long	",
 	  TEF_SRC | TEF_SRC_LOAD | 0x3000 | (opcode & 0x0e00) |
 	  TEF_DST | TEF_DST_LOAD | 0x0018 | (opcode & 0x00c7) |
-	  ((opcode & 0x00c0)<<9));
+	  ((opcode & 0x00c0)<<9) | TEF_FASTMODE);
 }
-
-void as_cmpm(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fprintf(fp,
-	  "	subcc	%%acc0, %%acc1, %%g0\n");
-}
-
 
 void tab_eori_sr(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* SUPERVISOR, IMMEDIATE */
-  fprintf(fp, "0x%08x, opcode_%04x",
+  fprintf(fp, "0x%08x, opcode_%04x, ",
 	  TEF_SUPERVISOR |
 	  TEF_SRC | TEF_SRC_IMM | TEF_SRC_WORD | TEF_SRC_LOAD 
 	  , opcode);
@@ -686,7 +646,7 @@ int head_illegal(U16 opcode)
 
 void tab_illegal(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4afc", TEF_TERMINATE);
+  fprintf(fp, "0x%08x, opcode_4afc, ", TEF_TERMINATE);
 }
 
 void as_illegal(FILE *fp, U16 opcode, const char *mnemonic)
@@ -697,22 +657,15 @@ void as_illegal(FILE *fp, U16 opcode, const char *mnemonic)
   as_exception(fp, opcode);
 }
 
-int head_lea(U16 opcode)
-{
-  return(opcode == 0x41c0);
-}
-
 void tab_lea(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* LOAD_EA */
-  fprintf(fp, "0x%08x, opcode_41c0",
-	  TEF_SRC | TEF_SRC_LONG | ((opcode & 0x003f)<<9) |
+  fprintf(fp,
+	  "0x%08x\n"
+	  "	mov	%%ea, %%acc0\n"
+	  "	.long	",
+	  TEF_SRC | TEF_SRC_LONG | ((opcode & 0x003f)<<9) | TEF_FASTMODE |
 	  TEF_DST | TEF_DST_LONG | ((opcode & 0x0e00)>>9) | 0x0008 | TEF_WRITE_BACK);
-}
-
-void as_lea(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fprintf(fp, "	mov	%%ea, %%acc0\n");
 }
 
 int head_link(U16 opcode)
@@ -722,7 +675,7 @@ int head_link(U16 opcode)
 
 void tab_link(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4e50",
+  fprintf(fp, "0x%08x, opcode_4e50, ",
 	  TEF_SRC | TEF_SRC_IMM | TEF_SRC_LOAD | TEF_SRC_WORD | TEF_WRITE_BACK |
 	  TEF_DST | (opcode & 0x0007) | 0x0008 | TEF_DST_LONG | TEF_DST_LOAD);
 }
@@ -740,11 +693,6 @@ void as_link(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	add	%%ea, %%acc1, %%o0\n"
 	  "	mov	%%ea, %%acc0\n"
 	  "	st	%%o0, [ %%regs + _A7 ]\n");
-}
-
-int head_move(U16 opcode)
-{
-  return (opcode == 0x1000);
 }
 
 void tab_move(FILE *fp, U16 opcode, const char *mnemonic)
@@ -766,31 +714,31 @@ void tab_move(FILE *fp, U16 opcode, const char *mnemonic)
 
   base = ((opcode & 0x003f)<<9) | ((opcode & 0x0e00)>>9) | ((opcode & 0x01c0)>>3);
 
-  fprintf(fp, "0x%08x, opcode_1000",
-	  TEF_SRC | TEF_DST | base | size | TEF_SRC_LOAD | TEF_WRITE_BACK);
-}
-
-void as_move(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  /* Fix SR */
   fprintf(fp,
-	  "	orcc	%%acc1, %%g0, %%acc0\n");
+	  "0x%08x\n"
+	  "	orcc	%%acc1, %%g0, %%acc0\n"
+	  "	.long	",
+	  TEF_SRC | TEF_DST | base | size | TEF_SRC_LOAD |
+	  TEF_WRITE_BACK | TEF_FASTMODE);
 }
 
 int head_move_sr(U16 opcode)
 {
-  return((opcode == 0x46c0) || (opcode == 0x40c0));
+  return(opcode == 0x46c0);
 }
 
 void tab_move_sr(FILE *fp, U16 opcode, const char *mnemonic)
 {
   if ((opcode & 0xffc0) == 0x46c0) {
     /* Move to SR */
-    fprintf(fp, "0x%08x, opcode_46c0", TEF_SUPERVISOR |
+    fprintf(fp, "0x%08x, opcode_46c0, ", TEF_SUPERVISOR |
 	    TEF_DST | TEF_DST_WORD | (opcode & 0x003f) | TEF_DST_LOAD);
   } else {
     /* Move from SR */
-    fprintf(fp, "0x%08x, opcode_40c0", TEF_SUPERVISOR |
+    fprintf(fp, "0x%08x\n"
+	    "	mov	%%sr, %%acc0\n"
+	    "	.long	",
+	    TEF_SUPERVISOR | TEF_FASTMODE |
 	    TEF_DST | TEF_DST_WORD | (opcode & 0x003f) | TEF_WRITE_BACK);
   }
 }
@@ -809,16 +757,7 @@ void as_move_sr(FILE *fp, U16 opcode, const char *mnemonic)
 	    "	ld	[ %%regs + _USP ], %%o0\n"
 	    "	st	%%o0, [ %%regs + _A7 ]\n"
 	    "0:\n");
-  } else {
-    /* Move from SR */
-    fprintf(fp,
-	    "	mov	%%sr, %%acc0\n");
   }
-}
-
-int head_movea(U16 opcode)
-{
-  return (opcode == 0x2040);
 }
 
 void tab_movea(FILE *fp, U16 opcode, const char *mnemonic)
@@ -834,15 +773,13 @@ void tab_movea(FILE *fp, U16 opcode, const char *mnemonic)
     break;
   }
 
-  fprintf(fp, "0x%08x, opcode_2040",
+  fprintf(fp,
+	  "0x%08x\n"
+	  "	mov	%%acc1, %%acc0\n"
+	  "	.long	",
 	  TEF_SRC | TEF_SRC_LOAD | ((opcode & 0x3f)<<9) | size |
 	  TEF_DST | TEF_DST_LONG | ((opcode & 0x0e00)>>9) | 0x0008 |
-	  TEF_WRITE_BACK);
-}
-
-void as_movea(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fprintf(fp, "	mov	%%acc1, %%acc0\n");
+	  TEF_WRITE_BACK | TEF_FASTMODE);
 }
 
 #if 0
@@ -852,22 +789,15 @@ int comp_moves(FILE *fp, U16 opcode, const char *mnemonic){
 }
 #endif /* 0 */
 
-int head_ori(U16 opcode)
-{
-  return (opcode == 0x0000);
-}
-
 void tab_ori(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_0000",
-	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | ((opcode & 0x00c0)<<9) |
-	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_WRITE_BACK);
-}
-
-void as_ori(FILE *fp, U16 opcode, const char *mnemonic)
-{
   fprintf(fp,
-	  "	orcc	%%acc1, %%acc0, %%acc0\n");
+	  "0x%08x\n"
+	  "	orcc	%%acc1, %%acc0, %%acc0\n"
+	  "	.long	",
+	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | ((opcode & 0x00c0)<<9) |
+	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_WRITE_BACK |
+	  TEF_FASTMODE);
 }
 
 int head_ori_ccr(U16 opcode)
@@ -877,7 +807,7 @@ int head_ori_ccr(U16 opcode)
 
 void tab_ori_ccr(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_003c",
+  fprintf(fp, "0x%08x, opcode_003c, ",
 	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | TEF_SRC_BYTE);
 }
 
@@ -888,23 +818,15 @@ void as_ori_ccr(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	or	%%acc1, %%sr, %%sr\n");
 }
 
-int head_ori_sr(U16 opcode)
-{
-  return(opcode == 0x007c);
-}
-
 void tab_ori_sr(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* SUPERVISOR, IMMEDIATE */
-  fprintf(fp, "0x%08x, opcode_%04x",
-	  TEF_SUPERVISOR |
-	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | TEF_SRC_WORD,
-	  opcode);
-}
-
-void as_ori_sr(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fprintf(fp, "	or	%%acc1, %%sr, %%sr\n");
+  fprintf(fp,
+	  "0x%08x\n"
+	  "	or	%%acc1, %%sr, %%sr\n"
+	  "	.long	",
+	  TEF_SUPERVISOR | TEF_FASTMODE |
+	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | TEF_SRC_WORD);
 }
 
 int head_clr(U16 opcode)
@@ -915,7 +837,7 @@ int head_clr(U16 opcode)
 void tab_clr(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* LOAD_EA, WRITE_BACK */
-  fprintf(fp, "0x%08x, opcode_4200",
+  fprintf(fp, "0x%08x, opcode_4200, ",
 	  TEF_DST | (opcode & 0xff) | TEF_WRITE_BACK);
 }
 
@@ -934,7 +856,7 @@ int head_neg(U16 opcode)
 
 void tab_neg(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4400",
+  fprintf(fp, "0x%08x, opcode_4400, ",
 	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_WRITE_BACK);
 }
 
@@ -955,21 +877,14 @@ void as_neg(FILE *fp, U16 opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-int head_not(U16 opcode)
-{
-  return(opcode == 0x4600);
-}
-
 void tab_not(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4600",
-	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_WRITE_BACK);
-}
-
-void as_not(FILE *fp, U16 opcode, const char *mnemonic)
-{
   fprintf(fp,
-	  "	xorcc	-1, %%acc0, %%acc0\n");
+	  "0x%08x\n"
+	  "	xorcc	-1, %%acc0, %%acc0\n"
+	  "	.long	",
+	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
+	  TEF_WRITE_BACK | TEF_FASTMODE);
 }
 
 int head_pea(U16 opcode)
@@ -979,7 +894,7 @@ int head_pea(U16 opcode)
 
 void tab_pea(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4850",
+  fprintf(fp, "0x%08x, opcode_4850, ",
 	  TEF_DST | TEF_DST_LONG | (opcode & 0x003f));
 }
 
@@ -1019,7 +934,7 @@ void tab_movem(FILE *fp, U16 opcode, const char *mnemonic)
       base |= TEF_SRC_MOVEM | (opcode & 0x003f);
     }
   }
-  fprintf(fp, "0x%08x, 0x00000000", base);
+  fprintf(fp, "0x%08x, 0x00000000, ", base);
 }
 
 void as_movem(FILE *fp, U16 opcode, const char *mnemonic)
@@ -1032,31 +947,26 @@ void tab_move_usp(FILE *fp, U16 opcode, const char *mnemonic)
   /* SUPERVISOR */
   if (opcode & 0x0008) {
     /* From USP */
-    fprintf(fp, "0x%08x, opcode_%04x", TEF_SUPERVISOR |
-	    TEF_DST | TEF_DST_LONG | 0x0008 | (opcode & 0x0007) | TEF_WRITE_BACK,
-	    opcode & 0xfff8);
+    fprintf(fp,
+	    "0x%08x\n"
+	    "	ld	[ %%regs + _USP ], %%acc0\n"
+	    "	.long	",
+	    TEF_SUPERVISOR | TEF_FASTMODE |
+	    TEF_DST | TEF_DST_LONG | 0x0008 | (opcode & 0x0007) | TEF_WRITE_BACK);
   } else {
     /* To USP */
-    fprintf(fp, "0x%08x, opcode_%04x", TEF_SUPERVISOR |
-	    TEF_DST | TEF_DST_LONG | 0x0008 | (opcode & 0x0007) | TEF_DST_LOAD,
-	    opcode & 0xfff8);
-  }
-}
-
-void as_move_usp(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  if (opcode & 0x0008) {
-    /* From USP */
-    fprintf(fp, "	ld	[ %%regs + _USP ], %%acc0\n");
-  } else {
-    /* To USP */
-    fprintf(fp, "	st	%%acc0, [ %%regs + _USP ]\n");
+    fprintf(fp,
+	    "0x%08x\n"
+	    "	st	%%acc0, [ %%regs + _USP ]\n"
+	    "	.long	",
+	    TEF_SUPERVISOR | TEF_FASTMODE |
+	    TEF_DST | TEF_DST_LONG | 0x0008 | (opcode & 0x0007) | TEF_DST_LOAD);
   }
 }
 
 void tab_reset(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_%04x", TEF_SUPERVISOR, opcode);
+  fprintf(fp, "0x%08x, opcode_%04x, ", TEF_SUPERVISOR, opcode);
 }
 
 void as_reset(FILE *fp, U16 opcode, const char *mnemonic)
@@ -1070,7 +980,7 @@ void as_reset(FILE *fp, U16 opcode, const char *mnemonic)
 void tab_nop(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* No need to do anything */
-  fprintf(fp, "0, opcode_4e71");
+  fprintf(fp, "0, opcode_4e71, ");
 }
 
 void as_nop(FILE *fp, U16 opcode, const char *mnemonic)
@@ -1080,7 +990,7 @@ void as_nop(FILE *fp, U16 opcode, const char *mnemonic)
 
 void tab_stop(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4e72",
+  fprintf(fp, "0x%08x, opcode_4e72, ",
 	  TEF_SUPERVISOR | TEF_SRC | TEF_SRC_LOAD | TEF_SRC_WORD | TEF_SRC_IMM |
 	  TEF_TERMINATE);
 }
@@ -1097,7 +1007,7 @@ void as_stop(FILE *fp, U16 opcode, const char *mnemonic)
 
 void tab_rte(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4e73",
+  fprintf(fp, "0x%08x, opcode_4e73, ",
 	  TEF_SUPERVISOR | TEF_TERMINATE);
 }
 
@@ -1155,7 +1065,7 @@ void as_rte(FILE *fp, U16 opcode, const char *mnemonic)
 
 void tab_rtd(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4e74",
+  fprintf(fp, "0x%08x, opcode_4e74, ",
 	  TEF_TERMINATE |
 	  TEF_DST | TEF_DST_LOAD | TEF_DST_IMM | TEF_DST_WORD);
 }
@@ -1184,7 +1094,7 @@ void as_rtd(FILE *fp, U16 opcode, const char *mnemonic)
 void tab_rts(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* TERMINATE */
-  fprintf(fp, "0x%08x, opcode_4e75", TEF_TERMINATE);
+  fprintf(fp, "0x%08x, opcode_4e75, ", TEF_TERMINATE);
 }
 
 void as_rts(FILE *fp, U16 opcode, const char *mnemonic)
@@ -1209,7 +1119,7 @@ void as_rts(FILE *fp, U16 opcode, const char *mnemonic)
 void tab_movec(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* SUPERVISOR, IMMEDIATE */
-  fprintf(fp, "0x%08x, opcode_%04x",
+  fprintf(fp, "0x%08x, opcode_%04x, ",
 	  TEF_SUPERVISOR |
 	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | TEF_SRC_WORD, opcode);
 }
@@ -1282,7 +1192,7 @@ int head_swap(U16 opcode)
 
 void tab_swap(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4840",
+  fprintf(fp, "0x%08x, opcode_4840, ",
 	  TEF_DST | TEF_DST_LOAD | TEF_DST_LONG | (opcode & 0x0007) |
 	  TEF_WRITE_BACK);
 }
@@ -1295,69 +1205,49 @@ void as_swap(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	orcc	%%acc0, %%o0, %%acc0\n");
 }
 
-int head_ext(U16 opcode)
-{
-  return(opcode == 0x4880);
-}
-
 void tab_ext(FILE *fp, U16 opcode, const char *mnemonic)
 {
   if (opcode & 0x0040) {
     /* WORD => LONG */
 
-    fprintf(fp, "0x%08x, opcode_4880",
+    fprintf(fp,
+	    "0x%08x\n"
+	    "	orcc	%%acc1, %%g0, %%acc0\n"
+	    "	.long	",
 	    TEF_SRC | TEF_SRC_WORD | TEF_SRC_LOAD | ((opcode & 0x0007)<<9) |
-	    TEF_DST | TEF_DST_LONG | (opcode & 0x0007) | TEF_WRITE_BACK);
+	    TEF_DST | TEF_DST_LONG | (opcode & 0x0007) | TEF_WRITE_BACK |
+	    TEF_FASTMODE);
   } else {
     /* BYTE => WORD */
 
-    fprintf(fp, "0x%08x, opcode_4880",
+    fprintf(fp,
+	    "0x%08x\n"
+	    "	orcc	%%acc1, %%g0, %%acc0\n"
+	    "	.long	",
 	    TEF_SRC | TEF_SRC_BYTE | TEF_SRC_LOAD | ((opcode & 0x0007)<<9) |
-	    TEF_DST | TEF_DST_WORD | (opcode & 0x0007) | TEF_WRITE_BACK);
+	    TEF_DST | TEF_DST_WORD | (opcode & 0x0007) | TEF_WRITE_BACK |
+	    TEF_FASTMODE);
   }
-}
-
-void as_ext(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  /* We already sign-extend on load */
-  fprintf(fp,
-	  "	orcc	%%acc1, %%g0, %%acc0\n");
-}
-
-int head_subi(U16 opcode)
-{
-  return(opcode == 0x0400);
 }
 
 void tab_subi(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_0400",
+  fprintf(fp,
+	  "0x%08x\n"
+	  "	subcc	%%acc0, %%acc1, %%acc0\n"
+	  "	.long	",
 	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_IMM | ((opcode & 0x00c0)<<9) |
 	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_WRITE_BACK |
-	  TEF_FIX_SR);
-}
-
-void as_subi(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fprintf(fp,
-	  "	subcc	%%acc0, %%acc1, %%acc0\n");
-}
-
-int head_tst(U16 opcode)
-{
-  return(opcode == 0x4a00);
+	  TEF_FIX_SR | TEF_FASTMODE);
 }
 
 void tab_tst(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4a00",
-	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff));
-}
-
-void as_tst(FILE *fp, U16 opcode, const char *mnemonic)
-{
   fprintf(fp,
-	  "	cmp	%%acc0, %%g0\n");
+	  "0x%08x\n"
+	  "	cmp	%%acc0, %%g0\n"
+	  "	.long	",
+	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_FASTMODE);
 }
 
 int head_unlk(U16 opcode)
@@ -1367,7 +1257,7 @@ int head_unlk(U16 opcode)
 
 void tab_unlk(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4e58",
+  fprintf(fp, "0x%08x, opcode_4e58, ",
 	  TEF_DST | TEF_DST_LONG | TEF_DST_LOAD | (opcode & 0x000f) |
 	  TEF_WRITE_BACK);
 }
@@ -1390,7 +1280,7 @@ int head_jsr(U16 opcode)
 
 void tab_jsr(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4e80",
+  fprintf(fp, "0x%08x, opcode_4e80, ",
 	  TEF_TERMINATE | TEF_DST | TEF_DST_LONG | (opcode & 0x003f) | TEF_PUSH_PC);
 }
 
@@ -1411,7 +1301,7 @@ int head_jmp(U16 opcode)
 
 void tab_jmp(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_4ec0",
+  fprintf(fp, "0x%08x, opcode_4ec0, ",
 	  TEF_TERMINATE | TEF_DST | TEF_DST_LONG | (opcode & 0x003f));
 }
 
@@ -1425,13 +1315,23 @@ void as_jmp(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	restore\n");
 }
 
+int head_dbcc(U16 opcode)
+{
+  return ((opcode & 0x0f00)|| (opcode == 0x50c8));
+}
+
 void tab_dbcc(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* IMM16 */
   /* NOTE: The SRC args are there only for the disassembly! */
-  fprintf(fp, "0x%08x, opcode_%04x",
+  fprintf(fp, "0x%08x, ",
 	  TEF_SRC | ((opcode & 0x0007)<<9) |
-	  TEF_DST | TEF_DST_WORD | TEF_DST_PC, opcode);
+	  TEF_DST | TEF_DST_WORD | TEF_DST_PC);
+  if (opcode & 0x0f00) {
+    fprintf(fp, "opcode_%04x, ", opcode);
+  } else {
+    fprintf(fp, "opcode_50c0, ");
+  }
 }
 
 void as_dbcc(FILE *fp, U16 opcode, const char *mnemonic)
@@ -1509,7 +1409,7 @@ int head_scc(U16 opcode)
 
 void tab_scc(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_%04x",
+  fprintf(fp, "0x%08x, opcode_%04x, ",
 	  TEF_DST | TEF_DST_BYTE | (opcode & 0x003f) | TEF_WRITE_BACK,
 	  opcode & 0xffc0);
 }
@@ -1571,38 +1471,6 @@ void as_scc(FILE *fp, U16 opcode, const char *mnemonic)
   }
 }
 
-int head_addq(U16 opcode)
-{
-  return(opcode == (opcode & 0xff00));
-}
-
-void tab_addq(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  /* LOAD_EA, LOAD_EO, WRITE_BACK */
-  if ((opcode & 0x023f) == 0x020f) {
-    /* Special case for adding odd values to A7 */
-    fprintf(fp, "0x%08x, opcode_%04x",
-	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
-	    TEF_SRC_QUICK8 | ((opcode + 0x0200) & 0x0e00) |
-	    TEF_WRITE_BACK | TEF_FIX_SR,
-	    (opcode & 0xf100) | ((opcode + 0x0200) & 0x0e00));
-  } else {
-    if (opcode & 0x0e00) {
-      fprintf(fp, "0x%08x, opcode_%04x",
-	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
-	      TEF_SRC_QUICK8 | (opcode & 0x0e00) |
-	      TEF_WRITE_BACK | TEF_FIX_SR,
-	      opcode & 0xff00);
-    } else {
-      fprintf(fp, "0x%08x, opcode_%04x",
-	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
-	      TEF_SRC_QUICK8 | (0x08 << 9) |
-	      TEF_WRITE_BACK | TEF_FIX_SR,
-	      opcode & 0xff00);
-    }
-  }
-}
-
 void as_addq(FILE *fp, U16 opcode, const char *mnemonic)
 {
   if (opcode & 0x0e00) {
@@ -1613,39 +1481,34 @@ void as_addq(FILE *fp, U16 opcode, const char *mnemonic)
   }
 }
 
-/* FIXME: SUBQ code is a case of cut-and-paste read it */
-
-int head_subq(U16 opcode)
-{
-  return(opcode == (opcode & 0xff00));
-}
-
-void tab_subq(FILE *fp, U16 opcode, const char *mnemonic)
+void tab_addq(FILE *fp, U16 opcode, const char *mnemonic)
 {
   /* LOAD_EA, LOAD_EO, WRITE_BACK */
   if ((opcode & 0x023f) == 0x020f) {
-    /* Special case for subtracting odd values to A7 */
-    fprintf(fp, "0x%08x, opcode_%04x",
+    /* Special case for adding odd values to A7 */
+    fprintf(fp, "0x%08x\n",
 	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
 	    TEF_SRC_QUICK8 | ((opcode + 0x0200) & 0x0e00) |
-	    TEF_WRITE_BACK | TEF_FIX_SR,
-	    (opcode & 0xf100) | ((opcode + 0x0200) & 0x0e00));
+	    TEF_WRITE_BACK | TEF_FIX_SR | TEF_FASTMODE);
+    as_addq(fp, (opcode & 0xf100) | ((opcode + 0x0200) & 0x0e00), mnemonic);
   } else {
     if (opcode & 0x0e00) {
-      fprintf(fp, "0x%08x, opcode_%04x",
+      fprintf(fp, "0x%08x\n",
 	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
 	      TEF_SRC_QUICK8 | (opcode & 0x0e00) |
-	      TEF_WRITE_BACK | TEF_FIX_SR,
-	      opcode & 0xff00);
+	      TEF_WRITE_BACK | TEF_FIX_SR | TEF_FASTMODE);
     } else {
-      fprintf(fp, "0x%08x, opcode_%04x",
+      fprintf(fp, "0x%08x\n",
 	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
 	      TEF_SRC_QUICK8 | (0x08 << 9) |
-	      TEF_WRITE_BACK | TEF_FIX_SR,
-	      opcode & 0xff00);
+	      TEF_WRITE_BACK | TEF_FIX_SR | TEF_FASTMODE);
     }
+    as_addq(fp, opcode, mnemonic);
   }
+  fprintf(fp, "	.long	");
 }
+
+/* FIXME: SUBQ code is a case of cut-and-paste read it */
 
 void as_subq(FILE *fp, U16 opcode, const char *mnemonic)
 {
@@ -1657,15 +1520,42 @@ void as_subq(FILE *fp, U16 opcode, const char *mnemonic)
   }
 }
 
+void tab_subq(FILE *fp, U16 opcode, const char *mnemonic)
+{
+  /* LOAD_EA, LOAD_EO, WRITE_BACK */
+  if ((opcode & 0x023f) == 0x020f) {
+    /* Special case for subtracting odd values to A7 */
+    fprintf(fp, "0x%08x\n",
+	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
+	    TEF_SRC_QUICK8 | ((opcode + 0x0200) & 0x0e00) |
+	    TEF_WRITE_BACK | TEF_FIX_SR | TEF_FASTMODE);
+    as_subq(fp, (opcode & 0xf100) | ((opcode + 0x0200) & 0x0e00), mnemonic);
+  } else {
+    if (opcode & 0x0e00) {
+      fprintf(fp, "0x%08x\n",
+	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
+	      TEF_SRC_QUICK8 | (opcode & 0x0e00) |
+	      TEF_WRITE_BACK | TEF_FIX_SR | TEF_FASTMODE);
+    } else {
+      fprintf(fp, "0x%08x\n",
+	      TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
+	      TEF_SRC_QUICK8 | (0x08 << 9) |
+	      TEF_WRITE_BACK | TEF_FIX_SR | TEF_FASTMODE);
+    }
+    as_subq(fp, opcode, mnemonic);
+  }
+  fprintf(fp, "	.long	");
+}
+
 void tab_bra(FILE *fp, U16 opcode, const char *mnemonic)
 {
   if (opcode & 0xff) {
     /* 8-bit immediate displacement */
-    fprintf(fp, "0x%08x, opcode_%04x", TEF_TERMINATE, opcode);
+    fprintf(fp, "0x%08x, opcode_%04x, ", TEF_TERMINATE, opcode);
   } else {
     /* 16-bit displacement */
     /* IMM16 */
-    fprintf(fp, "0x%08x, opcode_%04x",
+    fprintf(fp, "0x%08x, opcode_%04x, ",
 	    TEF_TERMINATE | TEF_DST | TEF_DST_WORD | TEF_DST_PC,
 	    opcode);
   }
@@ -1696,11 +1586,11 @@ void tab_bsr(FILE *fp, U16 opcode, const char *mnemonic)
 {
   if (opcode & 0xff) {
     /* 8-bit immediate displacement */
-    fprintf(fp, "0x%08x, opcode_%04x", TEF_TERMINATE | TEF_PUSH_PC, opcode);
+    fprintf(fp, "0x%08x, opcode_%04x, ", TEF_TERMINATE | TEF_PUSH_PC, opcode);
   } else {
     /* 16-bit displacement */
     /* IMM16 */
-    fprintf(fp, "0x%08x, opcode_%04x",
+    fprintf(fp, "0x%08x, opcode_%04x, ",
 	    TEF_TERMINATE | TEF_PUSH_PC | TEF_DST | TEF_DST_WORD | TEF_DST_PC,
 	    opcode);
   }
@@ -1731,11 +1621,11 @@ void tab_bcc(FILE *fp, U16 opcode, const char *mnemonic)
 {
   if (opcode & 0xff) {
     /* 8-bit immediate displacement */
-    fprintf(fp, "0, opcode_%04x", opcode);
+    fprintf(fp, "0, opcode_%04x, ", opcode);
   } else {
     /* 16-bit displacement */
     /* IMM16 */
-    fprintf(fp, "0x%08x, opcode_%04x",
+    fprintf(fp, "0x%08x, opcode_%04x, ",
 	    TEF_DST | TEF_DST_WORD | TEF_DST_PC,
 	    opcode);
   }
@@ -1820,7 +1710,7 @@ int head_moveq(U16 opcode)
 
 void tab_moveq(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_%04x",
+  fprintf(fp, "0x%08x, opcode_%04x, ",
 	  TEF_SRC_QUICK8 | ((opcode & 0xff)<<9) |
 	  TEF_DST | TEF_DST_LONG | ((opcode & 0x0e00)>>9) | TEF_WRITE_BACK,
 	  (opcode & 0xf1ff));
@@ -1857,7 +1747,7 @@ int head_divu(U16 opcode)
 
 void tab_divu(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_80c0",
+  fprintf(fp, "0x%08x, opcode_80c0, ",
 	  TEF_SRC | TEF_SRC_WORD | TEF_SRC_LOAD | ((opcode & 0x003f)<<9) |
 	  TEF_DST | TEF_DST_LONG | TEF_DST_LOAD | ((opcode & 0x0e00)>>9) |
 	  TEF_WRITE_BACK);
@@ -1894,58 +1784,42 @@ void as_divu(FILE *fp, U16 opcode, const char *mnemonic)
 	  "0:\n");
 }
 
-int head_or(U16 opcode)
-{
-  return(opcode == 0x8000);
-}
-
 void tab_or(FILE *fp, U16 opcode, const char *mnemonic)
 {
   U32 base = TEF_SRC | TEF_SRC_LOAD | TEF_DST | TEF_DST_LOAD | TEF_WRITE_BACK |
-    (opcode & 0x00c0) | ((opcode & 0x00c0)<<9);
+    (opcode & 0x00c0) | ((opcode & 0x00c0)<<9) | TEF_FASTMODE;
   if (opcode & 0x0100) {
-    fprintf(fp, "0x%08x, opcode_8000", base | (opcode & 0x0e3f));
+    fprintf(fp,
+	    "0x%08x\n"
+	    "	orcc	%%acc0, %%acc1, %%acc0\n"
+	    "	.long	",
+	    base | (opcode & 0x0e3f));
   } else {
-    fprintf(fp, "0x%08x, opcode_8000",
+    fprintf(fp,
+	    "0x%08x\n"
+	    "	orcc	%%acc0, %%acc1, %%acc0\n"
+	    "	.long	",
 	    base | ((opcode & 0x0e00)>>9) | ((opcode & 0x003f)<<9));
   }
 }
 
-void as_or(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fprintf(fp,
-	  "	orcc	%%acc0, %%acc1, %%acc0\n");
-}
-
-int head_suba(U16 opcode)
-{
-  return(opcode == 0x90c0);
-}
-
 void tab_suba(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_90c0",
-	  TEF_SRC | TEF_SRC_LOAD |
+  fprintf(fp,
+	  "0x%08x\n"
+	  "	sub	%%acc0, %%acc1, %%acc0\n"
+	  "	.long	",
+	  TEF_SRC | TEF_SRC_LOAD | TEF_FASTMODE |
 	  ((opcode & 0x0100)?TEF_SRC_LONG:TEF_SRC_WORD) |
 	  ((opcode & 0x003f)<<9) |
 	  TEF_DST | TEF_DST_LOAD | TEF_DST_LONG |
 	  ((opcode & 0x0e00)>>9) | 0x0008 | TEF_WRITE_BACK);
 }
 
-void as_suba(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fprintf(fp, "	sub	%%acc0, %%acc1, %%acc0\n");
-}
-
-int head_sub(U16 opcode)
-{
-  return(opcode == 0x9000);
-}
-
 void tab_sub(FILE *fp, U16 opcode, const char *mnemonic)
 {
   U32 base = TEF_SRC | TEF_SRC_LOAD | TEF_DST | TEF_DST_LOAD |
-    TEF_WRITE_BACK | TEF_FIX_SR;
+    TEF_FASTMODE | TEF_WRITE_BACK | TEF_FIX_SR;
 
   base |= (opcode & 0x00c0) | ((opcode & 0x00c0)<<9);
 
@@ -1954,12 +1828,10 @@ void tab_sub(FILE *fp, U16 opcode, const char *mnemonic)
   } else {
     base |= ((opcode & 0x0e00)>>9) | ((opcode & 0x003f)<<9);
   }
-  fprintf(fp, "0x%08x, opcode_9000", base);
-}
-
-void as_sub(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fprintf(fp, "	subcc	%%acc0, %%acc1, %%acc0\n");
+  fprintf(fp,
+	  "0x%08x\n"
+	  "	subcc	%%acc0, %%acc1, %%acc0\n"
+	  "	.long	", base);
 }
 
 int head_mulu(U16 opcode)
@@ -1969,7 +1841,7 @@ int head_mulu(U16 opcode)
 
 void tab_mulu(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_c0c0",
+  fprintf(fp, "0x%08x, opcode_c0c0, ",
 	  TEF_SRC | TEF_SRC_WORD | TEF_SRC_LOAD | ((opcode & 0x003f)<<9) |
 	  TEF_DST | TEF_DST_LONG | TEF_DST_LOAD | ((opcode & 0x0e00)>>9) |
 	  TEF_WRITE_BACK);
@@ -1991,7 +1863,7 @@ int head_muls(U16 opcode)
 
 void tab_muls(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_c1c0",
+  fprintf(fp, "0x%08x, opcode_c1c0, ",
 	  TEF_SRC | TEF_SRC_WORD | TEF_SRC_LOAD | ((opcode & 0x003f)<<9) |
 	  TEF_DST | TEF_DST_LONG | TEF_DST_LOAD | ((opcode & 0x0e00)>>9) |
 	  TEF_WRITE_BACK);
@@ -2005,22 +1877,15 @@ void as_muls(FILE *fp, U16 opcode, const char *mnemonic)
 	  "	smulcc	%%acc0, %%acc1, %%acc0\n");
 }
 
-int head_eor(U16 opcode)
-{
-  return (opcode == 0xb100);
-}
-
 void tab_eor(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_b100",
-	  TEF_SRC | TEF_SRC_LOAD | ((opcode & 0x00c0)<<9) | (opcode & 0x0e00) |
-	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_WRITE_BACK);
-}
-
-void as_eor(FILE *fp, U16 opcode, const char *mnemonic)
-{
   fprintf(fp,
-	  "	xorcc	%%acc0, %%acc1, %%acc0\n");
+	  "0x%08x\n"
+	  "	xorcc	%%acc0, %%acc1, %%acc0\n"
+	  "	.long	",
+	  TEF_SRC | TEF_SRC_LOAD | ((opcode & 0x00c0)<<9) | (opcode & 0x0e00) |
+	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) | TEF_WRITE_BACK |
+	  TEF_FASTMODE);
 }
 
 int head_exg(U16 opcode)
@@ -2036,10 +1901,10 @@ void tab_exg(FILE *fp, U16 opcode, const char *mnemonic)
 
   if ((opcode & 0x00f8) == 0x0048) {
     /* Address registers */
-    fprintf(fp, "0x%08x, opcode_%04x",
+    fprintf(fp, "0x%08x, opcode_%04x, ",
 	    base | 0x1000, opcode & 0xfff8);
   } else {
-    fprintf(fp, "0x%08x, opcode_%04x",
+    fprintf(fp, "0x%08x, opcode_%04x, ",
 	    base, (opcode & 0xff30) | 0x0040);
   }
 }
@@ -2061,53 +1926,37 @@ void as_exg(FILE *fp, U16 opcode, const char *mnemonic)
   }
 }
 
-int head_and(U16 opcode)
-{
-  return(opcode == 0xc000);
-}
-
 void tab_and(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  U32 base = TEF_SRC | TEF_SRC_LOAD | TEF_DST | TEF_DST_LOAD |
+  U32 base = TEF_SRC | TEF_SRC_LOAD | TEF_DST | TEF_DST_LOAD | TEF_FASTMODE |
     (opcode & 0x00c0) | ((opcode & 0x00c0)<<9) | TEF_WRITE_BACK;
 
   if (opcode & 0x0100) {
-    fprintf(fp, "0x%08x, opcode_c000",
+    fprintf(fp,
+	    "0x%08x\n"
+	    "	andcc	%%acc0, %%acc1, %%acc0\n"
+	    "	.long	",
 	    base | (opcode & 0x0e3f));
   } else {
-    fprintf(fp, "0x%08x, opcode_c000",
+    fprintf(fp,
+	    "0x%08x\n"
+	    "	andcc	%%acc0, %%acc1, %%acc0\n"
+	    "	.long	",
 	    base | ((opcode & 0x0e00)>>9) | ((opcode & 0x003f)<<9));
   }
-}
-
-void as_and(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fprintf(fp,
-	  "	andcc	%%acc0, %%acc1, %%acc0\n");
-}
-
-int head_adda(U16 opcode)
-{
-  return(opcode == 0xd0c0);
 }
 
 void tab_adda(FILE *fp, U16 opcode, const char *mnemonic)
 {
   U32 base = TEF_SRC | TEF_SRC_LOAD | ((opcode & 0x3f)<<9) |
     TEF_DST | TEF_DST_LOAD | TEF_DST_LONG | ((opcode & 0x0e00)>>9) | 0x0008 |
-    TEF_WRITE_BACK;
+    TEF_WRITE_BACK | TEF_FASTMODE;
   base |= ((opcode & 0x0100)?TEF_SRC_LONG:TEF_SRC_WORD);
-  fprintf(fp, "0x%08x, opcode_d0c0", base);
-}
-
-void as_adda(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fprintf(fp, "	add	%%acc0, %%acc1, %%acc0\n");
-}
-
-int head_add(U16 opcode)
-{
-  return(opcode == 0xd000);
+  fprintf(fp,
+	  "0x%08x\n"
+	  "	add	%%acc0, %%acc1, %%acc0\n"
+	  "	.long	",
+	  base);
 }
 
 void tab_add(FILE *fp, U16 opcode, const char *mnemonic)
@@ -2115,23 +1964,24 @@ void tab_add(FILE *fp, U16 opcode, const char *mnemonic)
   if (opcode & 0x0100) {
     /* Dn + (Ea) => (Ea) */
     /* LOAD_EA, LOAD_EO, WRITE_BACK */
-    fprintf(fp, "0x%08x, opcode_d000",
+    fprintf(fp,
+	    "0x%08x\n"
+	    "	addcc	%%acc0, %%acc1, %%acc0\n"
+	    "	.long	",
 	    TEF_SRC | TEF_SRC_LOAD | (opcode & 0x0e00) | ((opcode & 0x00c0)<<9) |
 	    TEF_DST | TEF_DST_LOAD | (opcode & 0x00ff) |
-	    TEF_WRITE_BACK | TEF_FIX_SR);
+	    TEF_WRITE_BACK | TEF_FIX_SR | TEF_FASTMODE);
   } else {
     /* Dn + (Ea) => Dn */
     /* LOAD_EA, LOAD_EO */
-    fprintf(fp, "0x%08x, opcode_d000",
+    fprintf(fp, 
+	    "0x%08x\n"
+	    "	addcc	%%acc0, %%acc1, %%acc0\n"
+	    "	.long	",
 	    TEF_SRC | TEF_SRC_LOAD | ((opcode & 0x00ff)<<9) |
 	    TEF_DST | TEF_DST_LOAD | ((opcode & 0x0e00)>>9) | (opcode & 0x00c0) |
-	    TEF_WRITE_BACK | TEF_FIX_SR);
+	    TEF_WRITE_BACK | TEF_FIX_SR | TEF_FASTMODE);
   }
-}
-
-void as_add(FILE *fp, U16 opcode, const char *mnemonic)
-{
-  fputs("	addcc	%acc0, %acc1, %acc0\n", fp);
 }
 
 int head_shift(U16 opcode)
@@ -2143,14 +1993,14 @@ int head_shift(U16 opcode)
 
 void tab_shift_mem(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_%04x",
+  fprintf(fp, "0x%08x, opcode_%04x, ",
 	  TEF_DST | TEF_DST_LOAD | TEF_DST_BYTE | (opcode & 0x003f) |
 	  TEF_WRITE_BACK, opcode & 0xffc0);
 }
 
 void tab_shift_imm(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_%04x",
+  fprintf(fp, "0x%08x, opcode_%04x, ",
 	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK |
 	  TEF_SRC_QUICK8 | ((opcode & 0x0e00)?(opcode & 0x0e00):0x1000),
 	  opcode & 0xfff8);
@@ -2158,7 +2008,7 @@ void tab_shift_imm(FILE *fp, U16 opcode, const char *mnemonic)
 
 void tab_shift_reg(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_%04x",
+  fprintf(fp, "0x%08x, opcode_%04x, ",
 	  TEF_SRC | TEF_SRC_LOAD | TEF_SRC_BYTE | (opcode & 0x0e00) |
 	  TEF_DST | TEF_DST_LOAD | (opcode & 0x00c7) | TEF_WRITE_BACK,
 	  opcode & 0xf1f8);
@@ -2676,7 +2526,7 @@ int head_line_f(U16 opcode)
 
 void tab_line_f(FILE *fp, U16 opcode, const char *mnemonic)
 {
-  fprintf(fp, "0x%08x, opcode_f000", TEF_TERMINATE);
+  fprintf(fp, "0x%08x, opcode_f000, ", TEF_TERMINATE);
 }
 
 void as_line_f(FILE *fp, U16 opcode, const char *mnemonic)
@@ -3025,28 +2875,28 @@ struct opcode_info opcodes[] = {
   { 0xffc0, 0x0880, 0x00040003, "BCLR", head_bclr, tab_bclr, as_bclr, comp_default },
   { 0xffc0, 0x08c0, 0x00040003, "BSET", head_bset, tab_bset, as_bset, comp_default },
   { 0xffff, 0x003c, 0x00001515, "ORI_CCR", head_ori_ccr, tab_ori_ccr, as_ori_ccr, comp_default },
-  { 0xffff, 0x007c, 0x00001f1f, "ORI_SR", head_ori_sr, tab_ori_sr, as_ori_sr, comp_default },
-  { 0xff00, 0x0000, 0x00030014, "ORI", head_ori, tab_ori, as_ori, comp_default },
+  { 0xffff, 0x007c, 0x00001f1f, "ORI_SR", NULL, tab_ori_sr, NULL, comp_default },
+  { 0xff00, 0x0000, 0x00030014, "ORI", NULL, tab_ori, NULL, comp_default },
   { 0xffff, 0x023c, 0x00001515, "ANDI_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xffff, 0x027c, 0x00001f1f, "ANDI_SR", head_default, tab_andi_sr, as_andi_sr, comp_default },
-  { 0xff00, 0x0200, 0x00030014, "ANDI", head_andi, tab_andi, as_andi, comp_default },
-  { 0xff00, 0x0400, 0x00010015, "SUBI", head_subi, tab_subi, as_subi, comp_default },
-  { 0xff00, 0x0600, 0x00010015, "ADDI", head_addi, tab_addi, as_addi, comp_default },
+  { 0xff00, 0x0200, 0x00030014, "ANDI", NULL, tab_andi, NULL, comp_default },
+  { 0xff00, 0x0400, 0x00010015, "SUBI", NULL, tab_subi, NULL, comp_default },
+  { 0xff00, 0x0600, 0x00010015, "ADDI", NULL, tab_addi, NULL, comp_default },
   { 0xffff, 0x0a3c, 0x00001515, "EORI_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xffff, 0x0a7c, 0x00001f1f, "EORI_SR", head_default, tab_eori_sr, as_eori_sr, comp_default },
   { 0xff00, 0x0a00, 0x00000014, "EORI", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xff00, 0x0c00, 0x00020014, "CMPI", head_cmpi, tab_cmpi, as_cmpi, comp_default },
+  { 0xff00, 0x0c00, 0x00020014, "CMPI", NULL, tab_cmpi, NULL, comp_default },
   { 0xff00, 0x0e00, 0x00000000, "MOVES", head_not_implemented, tab_illegal, as_illegal, comp_default },
   
-  { 0xf1c0, 0x1040, 0x00000000, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
-  { 0xf000, 0x1000, 0x00030014, "MOVE", head_move, tab_move, as_move, comp_default },
-  { 0xf1c0, 0x2040, 0x00000000, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
-  { 0xf000, 0x2000, 0x00030014, "MOVE", head_move, tab_move, as_move, comp_default },
-  { 0xf1c0, 0x3040, 0x00000000, "MOVEA", head_movea, tab_movea, as_movea, comp_default },
-  { 0xf000, 0x3000, 0x00030014, "MOVE", head_move, tab_move, as_move, comp_default },
+  { 0xf1c0, 0x1040, 0x00000000, "MOVEA", NULL, tab_movea, NULL, comp_default },
+  { 0xf000, 0x1000, 0x00030014, "MOVE", NULL, tab_move, NULL, comp_default },
+  { 0xf1c0, 0x2040, 0x00000000, "MOVEA", NULL, tab_movea, NULL, comp_default },
+  { 0xf000, 0x2000, 0x00030014, "MOVE", NULL, tab_move, NULL, comp_default },
+  { 0xf1c0, 0x3040, 0x00000000, "MOVEA", NULL, tab_movea, NULL, comp_default },
+  { 0xf000, 0x3000, 0x00030014, "MOVE", NULL, tab_move, NULL, comp_default },
 
   { 0xf1c0, 0x4180, 0x00000014, "CHK", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf1c0, 0x41c0, 0x00000000, "LEA", head_lea, tab_lea, as_lea, comp_default },
+  { 0xf1c0, 0x41c0, 0x00000000, "LEA", NULL, tab_lea, NULL, comp_default },
 
   { 0xffc0, 0x40c0, 0x00001f00, "MOVE_SR", head_move_sr, tab_move_sr, as_move_sr, comp_default },
   { 0xff00, 0x4000, 0x00000515, "NEGX", head_not_implemented, tab_illegal, as_illegal, comp_default },
@@ -3055,16 +2905,16 @@ struct opcode_info opcodes[] = {
   { 0xffc0, 0x44c0, 0x00000015, "MOVE_CCR", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xff00, 0x4400, 0x00000015, "NEG", head_neg, tab_neg, as_neg, comp_default },
   { 0xffc0, 0x46c0, 0x00001f1f, "MOVE_SR", head_move_sr, tab_move_sr, as_move_sr, comp_default },
-  { 0xff00, 0x4600, 0x00030014, "NOT", head_not, tab_not, as_not, comp_default },
+  { 0xff00, 0x4600, 0x00030014, "NOT", NULL, tab_not, NULL, comp_default },
   
   { 0xffc0, 0x4800, 0x00000015, "NBCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xfff8, 0x4840, 0x00030014, "SWAP", head_swap, tab_swap, as_swap, comp_default },
   { 0xfff8, 0x4848, 0x00001f00, "BKPT", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xffc0, 0x4840, 0x00000000, "PEA", head_pea, tab_pea, as_pea, comp_default },
-  { 0xffb8, 0x4880, 0x00030014, "EXT", head_ext, tab_ext, as_ext, comp_default },
+  { 0xffb8, 0x4880, 0x00030014, "EXT", NULL, tab_ext, NULL, comp_default },
   { 0xfb80, 0x4880, 0x00000000, "MOVEM", head_movem, tab_movem, as_movem, comp_default },
 
-  { 0xfff0, 0x4e60, 0x00001f00, "MOVE_USP", head_default, tab_move_usp, as_move_usp, comp_default },
+  { 0xfff0, 0x4e60, 0x00001f00, "MOVE_USP", NULL, tab_move_usp, NULL, comp_default },
   
   { 0xffff, 0x4e70, 0x00001f00, "RESET", head_default, tab_reset, as_reset, comp_default },
   { 0xffff, 0x4e71, 0x00000000, "NOP", head_default, tab_nop, as_nop, comp_default },
@@ -3077,7 +2927,7 @@ struct opcode_info opcodes[] = {
 
   { 0xffff, 0x4afc, 0x00001f00, "ILLEGAL", head_default, tab_illegal, as_illegal, comp_default },
   { 0xffc0, 0x4ac0, 0x00000014, "TAS", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xff00, 0x4a00, 0x00030014, "TST", head_tst, tab_tst, as_tst, comp_default },
+  { 0xff00, 0x4a00, 0x00030014, "TST", NULL, tab_tst, NULL, comp_default },
   { 0xfff0, 0x4e40, 0x00001f00, "TRAP", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xfff8, 0x4e50, 0x00000000, "LINK", head_link, tab_link, as_link, comp_default },
   { 0xfff8, 0x4e58, 0x00000000, "UNLK", head_unlk, tab_unlk, as_unlk, comp_default },
@@ -3085,10 +2935,10 @@ struct opcode_info opcodes[] = {
   { 0xffc0, 0x4e80, 0x00001f00, "JSR", head_jsr, tab_jsr, as_jsr, comp_default },
   { 0xffc0, 0x4ec0, 0x00001f00, "JMP", head_jmp, tab_jmp, as_jmp, comp_default },
 
-  { 0xf0f8, 0x50c8, 0x00001f00, "DB", head_default, tab_dbcc, as_dbcc, comp_default },
+  { 0xf0f8, 0x50c8, 0x00001f00, "DB", head_dbcc, tab_dbcc, as_dbcc, comp_default },
   { 0xf0c0, 0x50c0, 0x00001400, "S", head_scc, tab_scc, as_scc, comp_default },
-  { 0xf100, 0x5000, 0x00010015, "ADDQ", head_addq, tab_addq, as_addq, comp_default },
-  { 0xf100, 0x5100, 0x00010015, "SUBQ", head_subq, tab_subq, as_subq, comp_default },
+  { 0xf100, 0x5000, 0x00010015, "ADDQ", NULL, tab_addq, as_addq, comp_default },
+  { 0xf100, 0x5100, 0x00010015, "SUBQ", NULL, tab_subq, as_subq, comp_default },
   
   { 0xff00, 0x6000, 0x00001f00, "BRA", head_default, tab_bra, as_bra, comp_default },
   { 0xff00, 0x6100, 0x00001f00, "BSR", head_default, tab_bsr, as_bsr, comp_default },
@@ -3099,29 +2949,29 @@ struct opcode_info opcodes[] = {
   { 0xf1c0, 0x80c0, 0x00000014, "DIVU", head_divu, tab_divu, as_divu, comp_default },
   { 0xf1f0, 0x8100, 0x00000015, "SBCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xf1c0, 0x81c0, 0x00000014, "DIVS", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf000, 0x8000, 0x00030014, "OR", head_or, tab_or, as_or, comp_default },
+  { 0xf000, 0x8000, 0x00030014, "OR", NULL, tab_or, NULL, comp_default },
 
-  { 0xf0c0, 0x90c0, 0x00000000, "SUBA", head_suba, tab_suba, as_suba, comp_default },
+  { 0xf0c0, 0x90c0, 0x00000000, "SUBA", NULL, tab_suba, NULL, comp_default },
   { 0xf130, 0x9100, 0x00010515, "SUBX", head_not_implemented, tab_illegal, as_illegal, comp_default },
-  { 0xf000, 0x9000, 0x00010015, "SUB", head_sub, tab_sub, as_sub, comp_default },
+  { 0xf000, 0x9000, 0x00010015, "SUB", NULL, tab_sub, NULL, comp_default },
 
   { 0xf000, 0xa000, 0x00001f00, "LINE A", head_not_implemented, tab_illegal, as_illegal, comp_default },
 
-  { 0xf0c0, 0xb0c0, 0x00020014, "CMPA", head_cmpa, tab_cmpa, as_cmpa, comp_default },
-  { 0xf100, 0xb000, 0x00020014, "CMP", head_cmp, tab_cmp, as_cmp, comp_default },
-  { 0xf138, 0xb108, 0x00020014, "CMPM", head_cmpm, tab_cmpm, as_cmpm, comp_default },
-  { 0xf100, 0xb100, 0x00030014, "EOR", head_eor, tab_eor, as_eor, comp_default },
+  { 0xf0c0, 0xb0c0, 0x00020014, "CMPA", NULL, tab_cmpa, NULL, comp_default },
+  { 0xf100, 0xb000, 0x00020014, "CMP", NULL, tab_cmp, NULL, comp_default },
+  { 0xf138, 0xb108, 0x00020014, "CMPM", NULL, tab_cmpm, NULL, comp_default },
+  { 0xf100, 0xb100, 0x00030014, "EOR", NULL, tab_eor, NULL, comp_default },
 
   { 0xf1c0, 0xc0c0, 0x00030014, "MULU", head_mulu, tab_mulu, as_mulu, comp_default },
   { 0xf1f0, 0xc100, 0x00000015, "ABCD", head_not_implemented, tab_illegal, as_illegal, comp_default },
   { 0xf1f0, 0xc140, 0x00000000, "EXG", head_exg, tab_exg, as_exg, comp_default },
   { 0xf1f8, 0xc188, 0x00000000, "EXG", head_exg, tab_exg, as_exg, comp_default },
   { 0xf1c0, 0xc1c0, 0x00030014, "MULS", head_muls, tab_muls, as_muls, comp_default },
-  { 0xf000, 0xc000, 0x00030014, "AND", head_and, tab_and, as_and, comp_default },
+  { 0xf000, 0xc000, 0x00030014, "AND", NULL, tab_and, NULL, comp_default },
 
-  { 0xf0c0, 0xd0c0, 0x00000000, "ADDA", head_adda, tab_adda, as_adda, comp_default },
+  { 0xf0c0, 0xd0c0, 0x00000000, "ADDA", NULL, tab_adda, NULL, comp_default },
   { 0xf130, 0xd100, 0x00010515, "ADDX", head_addx, tab_addx, as_addx, comp_default },
-  { 0xf000, 0xd000, 0x00010015, "ADD", head_add, tab_add, as_add, comp_default },
+  { 0xf000, 0xd000, 0x00010015, "ADD", NULL, tab_add, NULL, comp_default },
 
   { 0xffc0, 0xe0c0, 0x00000015, "ASR", head_shift, tab_shift_mem, as_asr_mem, comp_default },
   { 0xffc0, 0xe1c0, 0x00000015, "ASL", head_shift, tab_shift_mem, as_asl_mem, comp_default },
@@ -3293,7 +3143,7 @@ void make_opcodes(FILE *fp, U32 start, U32 end)
 
     for (i=0; (opcode & opcodes[i].mask) != opcodes[i].tag; i++)
       ;
-    if (opcodes[i].as_header(opcode)) {
+    if (opcodes[i].as_header && opcodes[i].as_header(opcode)) {
       fprintf(fp,
 	      "	! %s\n"
 	      "	.globl	opcode_%04x\n"
@@ -3484,7 +3334,7 @@ void make_opcode_table(FILE *fp, U32 start, U32 end)
       ;
     fprintf(fp, "	.long	");
     opcodes[i].tab_entry(fp, opcode, opcodes[i].mnemonic);
-    fprintf(fp, ", 0x%08x, opcode_mnemonic_%d\t! 0x%04x: %s\n",
+    fprintf(fp, "0x%08x, opcode_mnemonic_%d\t! 0x%04x: %s\n",
 	    opcodes[i].sr_magic, i, opcode, opcodes[i].mnemonic);
   }
   fprintf(fp, "\n\n");
@@ -3655,7 +3505,7 @@ void make_opcode_headers(FILE *fp)
 
     for (i=0; (opcode & opcodes[i].mask) != opcodes[i].tag; i++)
       ;
-    if (opcodes[i].as_header(opcode)) {
+    if (opcodes[i].as_header && opcodes[i].as_header(opcode)) {
       fprintf(fp, "extern U32 opcode_%04x[];\t/* %s */\n",
 	      (unsigned int)opcode, opcodes[i].mnemonic);
     }

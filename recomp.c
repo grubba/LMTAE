@@ -1,9 +1,13 @@
 /*
- * $Id: recomp.c,v 1.17 1996/08/11 17:36:16 grubba Exp $
+ * $Id: recomp.c,v 1.18 1996/08/13 13:29:50 grubba Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.17  1996/08/11 17:36:16  grubba
+ * Now with timing statistics.
+ * Added some more dependancies to the Makefile.
+ *
  * Revision 1.16  1996/08/11 14:48:59  grubba
  * Added option to turn off SR optimization.
  *
@@ -110,6 +114,7 @@
 #include "sparc.h"
 #include "hardware.h"
 #include "interrupt.h"
+#include "compiler.h"
 
 /*
  * Define this to get runtime sanity checks of the emulated Amiga
@@ -405,6 +410,19 @@ int start_cpu(void)
   return (thr_create(NULL, 0, cpu_thread_main, NULL, THR_DETACHED, &cpu_thread));
 }
 
+void scan_table(void)
+{
+  U32 opcode;
+
+  for (opcode = 0; opcode < 0x00010000; opcode++) {
+    if ((!(compiler_tab[opcode].flags & TEF_FASTMODE)) &&
+	(compiler_tab[opcode].template) &&
+	(!compiler_tab[opcode].template[1])) {
+      printf("%s could be accellerated\n", compiler_tab[opcode].mnemonic);
+    }
+  }
+}
+
 int devzero = -1;
 
 volatile void Usage(char *arg0, char *romdump)
@@ -473,6 +491,8 @@ int main(int argc, char **argv)
 	if ((rommem = (U8 *)mmap((caddr_t)(memory + 0x00f80000), 512*1024,
 				    PROT_READ, MAP_SHARED|MAP_FIXED, romfd, 0))) {
 	  if (rommem == memory + 0x00f80000) {
+
+	    scan_table();
 
 	    init_interrupt();
 

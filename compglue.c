@@ -1,9 +1,13 @@
 /*
- * $Id: compglue.c,v 1.14 1996/08/11 17:36:12 grubba Exp $
+ * $Id: compglue.c,v 1.15 1996/08/13 13:29:42 grubba Exp $
  *
  * Help functions for the M68000 to Sparc compiler.
  *
  * $Log: compglue.c,v $
+ * Revision 1.14  1996/08/11 17:36:12  grubba
+ * Now with timing statistics.
+ * Added some more dependancies to the Makefile.
+ *
  * Revision 1.13  1996/08/11 14:48:52  grubba
  * Added option to turn off SR optimization.
  *
@@ -173,17 +177,42 @@ void break_me(void)
 
 void __inline__ skip_ea(U32 *pc, U32 flags)
 {
-  if ((flags & 0x0030) && ((flags & 0x003f) != 0x003c)) {
-    /* Not Register direct or immediate */
+  if ((flags & 0x003f) >= 0x28) {
+    /* (d8, An, Xn), (d8, PC, Xn)
+     * (d16,An), (d16).W, (d16,PC)
+     * (d32).L
+     *
+     * Immediate data
+     *
+     * NOT
+     * Dn, An, (An), (An)+, -(An)
+     */
     if ((flags & 0x003f) == 0x39) {
       /* (d32).L */
       (*pc) += 2;
-    } else if ((flags & 0x0038) > 0x20) {
-      /* (d8, An, Xn), (d8, PC, Xn) */
-      /* (d16,An), (d16).W, (d16,PC) */
+    } else if ((flags & 0x003f) != 0x003c) {
+      /* NOT immediate data */
       (*pc)++;
     }
   }
+
+#if 0
+
+  if ((flags & 0x003f) != 0x003c) {
+    /* Not immediate data */
+    if ((flags & 0x003f) == 0x39) {
+      /* (d32).L */
+      (*pc) += 2;
+    } else if ((flags & 0x003f) >= 0x28) {
+      /* (d8, An, Xn), (d8, PC, Xn)
+       * (d16,An), (d16).W, (d16,PC)
+       * NOT
+       * Dn, An, (An), (An)+, -(An)
+       */
+      (*pc)++;
+    }
+  }
+#endif /* 0 */
 }
 
 void calc_ea(U32 **code, U32 *pc, U32 flags, U32 oldpc)
@@ -383,12 +412,8 @@ U32 compile(struct code_info *ci)
 	if (!(flags & TEF_SRC_MOVEM)) {
 	  U32 newflags = ((flags & (TEF_SRC_MASK | TEF_SRC_SIZE))>>TEF_SRC_SHIFT);
 	  
-	  if ((flags & TEF_MOVEM) && (flags & TEF_WRITE_BACK)) {
-	    skip_ea(&pc, ((opcode & 0x0007) | 0x0010));
-	  } else {
-	    /* Get the effective address */
-	    skip_ea(&pc, newflags);
-	  }
+	  /* Skip the effective address */
+	  skip_ea(&pc, newflags);
 
 	  if (flags & TEF_SRC_LOAD) {
 	    if ((flags & TEF_SRC_MASK) == 0x7800) {
@@ -413,11 +438,8 @@ U32 compile(struct code_info *ci)
 
       if (flags & TEF_DST) {
 	if (!(flags & TEF_DST_MOVEM)) {
-	  if ((flags & TEF_MOVEM) && (flags & TEF_WRITE_BACK)) {
-	    skip_ea(&pc, ((opcode & 0x0007) | 0x0010));
-	  } else {
-	    skip_ea(&pc, flags & 0x00ff);
-	  }
+	  /* Skip the effective address */
+	  skip_ea(&pc, flags & 0x00ff);
 	  
 	  if (flags & TEF_DST_LOAD) {
 	    if ((flags & TEF_DST_MASK) == 0x003c) {
@@ -849,7 +871,14 @@ U32 compile(struct code_info *ci)
 	  regno += 4;
 	}
       }
+    } else if (flags & TEF_FASTMODE) {
+      /* Just a single Sparc instruction.
+       * This saves two memory accesses.
+       */
+      *(code++) = (U32)(compiler_tab[opcode].template);
     } else {
+      /* Multiple Sparc instructions
+       */
       copy_template(&code, compiler_tab[opcode].template);
     }
 

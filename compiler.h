@@ -1,9 +1,14 @@
 /*
- * $Id: compiler.h,v 1.5 1996/08/04 16:25:15 grubba Exp $
+ * $Id: compiler.h,v 1.6 1996/08/13 13:29:46 grubba Exp $
  *
  * Includefile for the M68000 to Sparc recompiler.
  *
  * $Log: compiler.h,v $
+ * Revision 1.5  1996/08/04 16:25:15  grubba
+ * Now does the SR scans.
+ * Does not yet skip past the opcode arguments in the SR scan.
+ * Split the tab_entry for the sr_magic into sr_magic_*.
+ *
  * Revision 1.4  1996/08/04 14:22:50  grubba
  * The compiler table now holds information needed for SR optimization.
  *
@@ -58,10 +63,14 @@ struct tab_entry {
  *            01     i iiii iii            Source is quick 8bit (loaded to %acc1)
  *    1                                    Source is multiple registers
  *   1                                     Destination is multiple registers
+ *  1                                      Fastmode (instruction in template)
  */
 
 /* Pre instruction flags */
 #define TEF_SUPERVISOR	0x80000000
+
+/* Template flags */
+#define TEF_FASTMODE	0x40000000
 
 /* Pre instruction flags */
 #define TEF_PUSH_PC	0x08000000
