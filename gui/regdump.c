@@ -1,9 +1,13 @@
 /*
- * $Id: regdump.c,v 1.3 1996/07/17 16:14:52 grubba Exp $
+ * $Id: regdump.c,v 1.4 1997/08/29 00:13:43 grubba Exp $
  *
  * User Interface for the M68000 to Sparc recompiler
  *
  * $Log: regdump.c,v $
+ * Revision 1.3  1996/07/17 16:14:52  grubba
+ * Changed from {U,}{LONG,WORD,BYTE} to [SU]{8,16,32}.
+ * Hopefully all places got patched this time.
+ *
  * Revision 1.2  1996/07/11 20:13:05  grubba
  * Added buttons to the CPU Monitor window. There is no feedback (yet).
  *
@@ -29,6 +33,8 @@
 #include <stdio.h>
 #include <memory.h>
 #include <malloc.h>
+#include <sys/types.h>
+#include <sys/select.h>
 
 #include "../recomp.h"
 #include "../m68k.h"
@@ -110,11 +116,11 @@ void *register_monitor_main(void *arg)
       char string[30];
       XEvent event;
 
-      FD_SET(display->fd, &read_fds);
+      FD_SET(ConnectionNumber(display), &read_fds);
       timeout.tv_sec = 1;
       timeout.tv_usec = 0;
 
-      if (select(display->fd + 1, &read_fds, NULL, NULL, &timeout) < 0) {
+      if (select(ConnectionNumber(display) + 1, &read_fds, NULL, NULL, &timeout) < 0) {
 	fprintf(stderr, "selection error\n");
 	break;
       }
