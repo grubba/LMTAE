@@ -14,6 +14,7 @@
 /compgen.c foreign_ident
 /compglue.c foreign_ident
 /compiler.h foreign_ident
+/disassembler.c foreign_ident
 /hardware.c foreign_ident
 /m68k.h foreign_ident
 /m68k.txt foreign_ident
