@@ -1,9 +1,12 @@
 /*
- * $Id: recomp.c,v 1.18 1996/08/13 13:29:50 grubba Exp $
+ * $Id: recomp.c,v 1.19 1998/02/10 01:02:27 marcus Exp $
  *
  * M68000 to SPARC recompiler.
  *
  * $Log: recomp.c,v $
+ * Revision 1.18  1996/08/13 13:29:50  grubba
+ * Implemented TEF_FASTMODE.
+ *
  * Revision 1.17  1996/08/11 17:36:16  grubba
  * Now with timing statistics.
  * Added some more dependancies to the Makefile.
@@ -145,6 +148,12 @@ extern struct seg_info *code_tree;
 /* Debug level */
 
 U32 debuglevel = 0;
+
+
+/* To GUI or not to GUI, that's the question */
+
+int nogui = 0;
+
 
 /*
  * Functions
@@ -390,7 +399,8 @@ void *cpu_thread_main(void *args)
   regs.a7 = regs.ssp = ((U32 *)(memory + 0x00f80000))[0];
   regs.sr = 0x00002700;
 
-  start_register_dump(&regs);
+  if(!nogui)
+    start_register_dump(&regs);
 
 #ifdef DEBUG
   fprintf(stdout, "Starting CPU at 0x%08x\n", start_addr);
@@ -435,6 +445,7 @@ volatile void Usage(char *arg0, char *romdump)
 	  "-D\tDisassemble\n"
 	  "-s\tRuntime statistics\n"
 	  "-t\tRuntime trace\n"
+	  "-q\tNo GUI\n"
 	  "\n"
 	  "+O\tTurn off SR optimization\n"
 	  "\nThe current romdump is \"%s\".\n",
@@ -463,6 +474,9 @@ int main(int argc, char **argv)
 	break;
       case 't':
 	debuglevel |= DL_RUNTIME_TRACE;
+	break;
+      case 'q':
+	nogui = 1;
 	break;
       default:
 	Usage(argv[0], romdump);
@@ -496,7 +510,8 @@ int main(int argc, char **argv)
 
 	    init_interrupt();
 
-	    start_info_window();
+	    if(!nogui)
+	      start_info_window();
 
 	    init_hardware();
 
