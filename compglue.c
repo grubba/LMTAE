@@ -1,9 +1,12 @@
 /*
- * $Id: compglue.c,v 1.3 1996/07/08 21:20:44 grubba Exp $
+ * $Id: compglue.c,v 1.4 1996/07/10 20:22:08 grubba Exp $
  *
  * Help functions for the M68000 to Sparc compiler.
  *
  * $Log: compglue.c,v $
+ * Revision 1.3  1996/07/08 21:20:44  grubba
+ * *** empty log message ***
+ *
  * Revision 1.2  1996/07/01 19:16:49  grubba
  * Implemented ASL and ASR.
  * Changed semantics for new_codeinfo(), it doesn't allocate space for the code.
@@ -136,7 +139,7 @@ void calc_ea(ULONG **code, ULONG *pc, ULONG flags, ULONG oldpc)
 	}
       } else {
 	/* or %lo(val), %g0, %ea */
-	*((*code)++) = 0xaa112000 | (val & 0x1fff);
+	*((*code)++) = 0xaa102000 | (val & 0x1fff);
       }
     } else if (((flags & 0x0038) == 0x30) ||
 	       ((flags & 0x003f) == 0x3b)) {
