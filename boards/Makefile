@@ -1,7 +1,10 @@
 #
-# $Id: Makefile,v 1.1 1996/07/12 13:09:07 marcus Exp $
+# $Id: Makefile,v 1.2 1997/08/29 00:10:08 grubba Exp $
 #
-# $Log: $
+# $Log: Makefile,v $
+# Revision 1.1  1996/07/12 13:09:07  marcus
+# Created a hard disk emulating Zorro board
+#
 #
 
 CC = gcc
@@ -16,5 +19,5 @@ all : hardfile.so hardfile.rom
 
 hardfile.so : hardfile.c ../common.h ../recomp.h
 
-hardfile.rom : /home/lysdisk2/marcus/tmp/hardfile.rom
+hardfile.rom : /home/marcus/tmp/hardfile.rom
 	cp $< $@
