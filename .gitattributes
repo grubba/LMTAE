@@ -15,6 +15,11 @@
 /compglue.c foreign_ident
 /compiler.h foreign_ident
 /disassembler.c foreign_ident
+/gui.h foreign_ident
+/gui/disassembler.c foreign_ident
+/gui/gui.c foreign_ident
+/gui/info.c foreign_ident
+/gui/regdump.c foreign_ident
 /hardware.c foreign_ident
 /m68k.h foreign_ident
 /m68k.txt foreign_ident
